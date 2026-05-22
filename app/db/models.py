@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -34,6 +34,7 @@ class Document(Base, TimestampMixin):
 
 class DocumentChunk(Base, TimestampMixin):
     __tablename__ = "document_chunks"
+    __table_args__ = (Index("ix_document_chunks_document_id", "document_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), nullable=False)
@@ -58,6 +59,7 @@ class ChatSession(Base, TimestampMixin):
 
 class ChatMessage(Base, TimestampMixin):
     __tablename__ = "chat_messages"
+    __table_args__ = (Index("ix_chat_messages_session_id", "session_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.id"), nullable=False)

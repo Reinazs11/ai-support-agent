@@ -25,7 +25,8 @@ quality, and honest documentation about what is complete and what is still plann
 
 ## Current Status
 
-Phase 1, the project foundation, is in place.
+Phase 1, the project foundation, is in place. Phase 2 persistence work is being
+developed in a feature branch before review and merge.
 
 Implemented:
 
@@ -42,7 +43,7 @@ Implemented:
 
 Still pending:
 
-- Alembic configuration and the first database migration.
+- PostgreSQL execution of the initial Alembic migration.
 - Real persistence for uploaded documents and metadata.
 - Real parsing-to-chunk persistence flow.
 - OpenAI embeddings.

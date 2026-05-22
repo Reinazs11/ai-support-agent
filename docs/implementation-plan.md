@@ -15,6 +15,10 @@
 - Configure Alembic and the first migration.
 - Add integration tests for database connectivity and metadata writes.
 
+Status: implemented in the Phase 2 branch with the initial schema migration and
+SQLite-backed integration tests for model metadata writes. PostgreSQL migration
+execution should be validated when Docker is available locally.
+
 ## Phase 3: Ingestion And Embeddings
 
 - Persist uploaded files or normalized text.
