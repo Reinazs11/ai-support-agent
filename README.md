@@ -1,49 +1,145 @@
 # AI Support & Knowledge Agent
 
-Projeto de estudos production-style para AI Engineer. A aplicacao ingere documentos,
-cria embeddings, indexa conteudo em Qdrant, responde perguntas com RAG e fontes,
-classifica tickets, executa workflows controlados com agente e mede qualidade,
-custo, latencia e traces.
+A production-style AI Engineering portfolio project for building a support and
+knowledge-base agent with document ingestion, RAG, vector search, evaluation,
+observability, and controlled agentic workflows.
 
-## Stack inicial
+The goal is not to hide complexity behind a demo. The goal is to build the system
+incrementally, with clear backend architecture, explicit contracts, measurable
+quality, and honest documentation about what is complete and what is still planned.
+
+## What This Project Will Support
+
+- Document ingestion for company knowledge-base files.
+- Parsing and chunking for `.pdf`, `.md`, `.txt`, and `.csv`.
+- Embedding generation for semantic search.
+- Vector storage in Qdrant.
+- Metadata storage in PostgreSQL.
+- RAG-based question answering with real sources and citations.
+- Ticket or lead classification.
+- Controlled agent workflows with human-in-the-loop boundaries.
+- Automated RAG evaluation.
+- Structured logs, latency tracking, cost tracking, and LLM tracing.
+- Local execution with Docker Compose.
+- Public deployment and demo documentation.
+
+## Current Status
+
+Phase 1, the project foundation, is in place.
+
+Implemented:
+
+- FastAPI application structure.
+- Environment-based settings.
+- Structured logging setup.
+- Initial HTTP contracts.
+- Placeholder endpoints for documents, ingestion, chat, tickets, and evaluation.
+- Deterministic services for chunking and initial ticket classification.
+- SQLAlchemy model draft for the main domain entities.
+- Docker Compose services for PostgreSQL and Qdrant.
+- Architecture, API, evaluation, safety, and limitation docs.
+- Initial pytest coverage.
+
+Still pending:
+
+- Alembic configuration and the first database migration.
+- Real persistence for uploaded documents and metadata.
+- Real parsing-to-chunk persistence flow.
+- OpenAI embeddings.
+- Qdrant indexing and retrieval.
+- Real RAG answer generation.
+- LangGraph agent workflow.
+- Langfuse tracing.
+- Deployment setup.
+
+## Tech Stack
 
 - Python 3.12.10
-- FastAPI + Pydantic v2
-- PostgreSQL + SQLAlchemy + Alembic
-- Qdrant para busca vetorial
-- OpenAI SDK para LLMs e embeddings
-- LangGraph para agente a partir da etapa de workflow
-- Langfuse para observabilidade LLM
-- Pytest, Ruff e mypy para qualidade
+- FastAPI and Pydantic v2
+- PostgreSQL, SQLAlchemy 2.x, and Alembic
+- Qdrant for vector search
+- OpenAI SDK for LLM and embedding calls
+- LangGraph for agent workflows
+- Langfuse for LLM observability
+- PyMuPDF for PDF parsing
+- Pytest for testing
+- Ruff and mypy for code quality
+- Docker Compose for local infrastructure
 
-## Desenvolvimento local
+## Local Development
+
+Create and activate a virtual environment:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-copy .env.example .env
-docker compose up -d postgres qdrant
-uvicorn app.main:app --reload
 ```
 
-Healthcheck:
+Install the project with development dependencies:
+
+```powershell
+python -m pip install -e ".[dev]"
+```
+
+Create a local environment file:
+
+```powershell
+copy .env.example .env
+```
+
+Start local infrastructure:
+
+```powershell
+docker compose up -d postgres qdrant
+```
+
+Run the API:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
+
+Check the health endpoint:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/health
 ```
 
-## Estado atual
+## Validation
 
-Este scaffold implementa a fundacao do projeto:
+Run the main checks before committing:
 
-- estrutura de pacotes;
-- configuracao por ambiente;
-- logging estruturado;
-- contratos HTTP iniciais;
-- endpoints stub para documentos, ingestao, chat, tickets e avaliacao;
-- servicos deterministicos pequenos para chunking e classificacao;
-- documentacao de arquitetura e plano.
+```powershell
+python -m compileall app scripts tests
+python -m pytest
+python -m ruff check .
+```
 
-As integracoes reais com OpenAI, PostgreSQL, Qdrant, LangGraph e Langfuse entram nas
-proximas etapas descritas em `docs/implementation-plan.md`.
+## Roadmap
+
+The project follows the phases documented in
+[`docs/implementation-plan.md`](docs/implementation-plan.md):
+
+1. Foundation.
+2. Persistence with SQLAlchemy and Alembic.
+3. Document ingestion and embeddings.
+4. RAG.
+5. Evaluation.
+6. Agent workflows.
+7. Observability and deployment.
+
+## Learning Focus
+
+This project is designed for someone with backend experience who wants to learn
+AI Engineering through a realistic system. Each phase should make the AI-specific
+concepts explicit: chunking, embeddings, vector search, grounded generation,
+citations, evaluation, cost, latency, and operational safety.
+
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md)
+- [`docs/implementation-plan.md`](docs/implementation-plan.md)
+- [`docs/api-contracts.md`](docs/api-contracts.md)
+- [`docs/evaluation-plan.md`](docs/evaluation-plan.md)
+- [`docs/responsible-ai-safety.md`](docs/responsible-ai-safety.md)
+- [`docs/known-limitations.md`](docs/known-limitations.md)
