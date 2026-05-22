@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rag-support-agent"
+version = "0.1.0"
+description = "Production-style AI support and knowledge agent with FastAPI, RAG, agents, evaluation, and observability."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.13",
+    "fastapi>=0.115",
+    "langfuse>=2.53",
+    "langgraph>=0.2",
+    "openai>=1.57",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "pymupdf>=1.24",
+    "python-multipart>=0.0.18",
+    "qdrant-client>=1.12",
+    "sqlalchemy>=2.0",
+    "structlog>=24.4",
+    "tenacity>=9.0",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "python-dotenv>=1.0",
+    "ruff>=0.8",
+]
+eval = [
+    "ragas>=0.2",
+]
+csv = [
+    "pandas>=2.2",
+]
+integration = [
+    "testcontainers[postgres]>=4.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "N"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+plugins = []
