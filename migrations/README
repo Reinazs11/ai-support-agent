@@ -1,0 +1,8 @@
+Alembic migration environment for the AI Support & Knowledge Agent.
+
+Use:
+
+```powershell
+python -m alembic upgrade head
+python -m alembic revision --autogenerate -m "message"
+```
