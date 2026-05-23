@@ -25,8 +25,8 @@ quality, and honest documentation about what is complete and what is still plann
 
 ## Current Status
 
-Phase 1, the project foundation, is in place. Phase 2 persistence is merged.
-The first Phase 3 slice is being developed in a feature branch.
+Phase 1, the project foundation, is in place. Phase 2 persistence is merged,
+and Phase 3 ingestion, indexing, and retrieval are in progress.
 
 Implemented:
 
@@ -37,7 +37,8 @@ Implemented:
 - Document upload metadata persistence and document chunk persistence.
 - Embedding and Qdrant indexing path when an embedding provider is configured.
 - Initial embedding provider configuration for OpenAI, future local models, or disabled mode.
-- Placeholder endpoints for chat and evaluation.
+- Retrieval from Qdrant in `/chat`, returning source citations when results exist.
+- Placeholder endpoint for evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -47,8 +48,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Retrieval from Qdrant in `/chat`.
-- Real RAG answer generation.
+- Real RAG answer generation after retrieval.
 - LangGraph agent workflow.
 - Langfuse tracing.
 - Deployment setup.

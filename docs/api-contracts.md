@@ -56,6 +56,15 @@ Request:
 ```
 
 Response includes `answer`, `sources`, `confidence`, and `retrieval_status`.
+Current retrieval statuses include:
+
+- `not_configured`: embedding provider or vector store is unavailable.
+- `embedding_unavailable`: the question could not be embedded.
+- `no_results`: Qdrant returned no relevant chunks.
+- `retrieved`: Qdrant returned one or more source chunks.
+
+Until LLM generation is implemented, `answer` explains retrieval status instead
+of composing a final grounded response.
 
 ## POST /tickets/classify
 

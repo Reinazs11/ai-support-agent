@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -9,7 +9,17 @@ from qdrant_client.http import models
 class ChunkVectorRecord:
     point_id: str
     vector: list[float]
-    payload: dict[str, str | int | float | None]
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class RetrievedChunk:
+    document_id: str
+    chunk_id: str
+    chunk_index: int
+    filename: str
+    text: str
+    score: float
 
 
 class VectorStore(Protocol):
@@ -22,6 +32,14 @@ class VectorStore(Protocol):
         vector_size: int,
         records: list[ChunkVectorRecord],
     ) -> None:
+        pass
+
+    def search_similar(
+        self,
+        collection_name: str,
+        vector: list[float],
+        limit: int,
+    ) -> list[RetrievedChunk]:
         pass
 
 
@@ -74,3 +92,31 @@ class QdrantVectorStore:
             collection_name=collection_name,
             vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
         )
+
+    def search_similar(
+        self,
+        collection_name: str,
+        vector: list[float],
+        limit: int,
+    ) -> list[RetrievedChunk]:
+        if not self.client.collection_exists(collection_name):
+            return []
+
+        response = self.client.query_points(
+            collection_name=collection_name,
+            query=vector,
+            limit=limit,
+            with_payload=True,
+        )
+        return [
+            RetrievedChunk(
+                document_id=str(point.payload.get("document_id", "")),
+                chunk_id=str(point.payload.get("chunk_id", "")),
+                chunk_index=int(point.payload.get("chunk_index", 0)),
+                filename=str(point.payload.get("filename", "")),
+                text=str(point.payload.get("text", "")),
+                score=float(point.score),
+            )
+            for point in response.points
+            if point.payload
+        ]

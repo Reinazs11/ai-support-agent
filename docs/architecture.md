@@ -26,9 +26,10 @@ tickets, and later executes controlled workflows with LangGraph.
 2. The ingest flow parses content and creates chunks with metadata.
 3. Embeddings are generated and stored in Qdrant.
 4. Document and chunk metadata are stored in PostgreSQL.
-5. `/chat` retrieves top-k chunks, builds a grounded prompt, and returns an answer
-   with only the sources actually retrieved.
-6. Logs and traces record request IDs, retrieval inputs, model names, latency, and cost.
+5. `/chat` retrieves top-k chunks and returns citations for the sources actually
+   retrieved.
+6. A later RAG step will build a grounded prompt and generate the final answer.
+7. Logs and traces record request IDs, retrieval inputs, model names, latency, and cost.
 
 ## Key Decisions
 
