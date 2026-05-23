@@ -75,6 +75,7 @@ class RagService:
             collection_name=self.settings.qdrant_collection,
             vector=question_vectors[0],
             limit=top_k,
+            document_ids=request.document_ids,
         )
         retrieval_latency_ms = (perf_counter() - retrieval_started) * 1000
         if not retrieved_chunks:

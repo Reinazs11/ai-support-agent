@@ -39,6 +39,7 @@ class VectorStore(Protocol):
         collection_name: str,
         vector: list[float],
         limit: int,
+        document_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         pass
 
@@ -98,14 +99,17 @@ class QdrantVectorStore:
         collection_name: str,
         vector: list[float],
         limit: int,
+        document_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         if not self.client.collection_exists(collection_name):
             return []
 
+        query_filter = self._build_document_filter(document_ids or [])
         response = self.client.query_points(
             collection_name=collection_name,
             query=vector,
             limit=limit,
+            query_filter=query_filter,
             with_payload=True,
         )
         return [
@@ -120,3 +124,18 @@ class QdrantVectorStore:
             for point in response.points
             if point.payload
         ]
+
+    def _build_document_filter(self, document_ids: list[str]) -> models.Filter | None:
+        unique_document_ids = sorted({document_id for document_id in document_ids if document_id})
+        if not unique_document_ids:
+            return None
+
+        return models.Filter(
+            should=[
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchValue(value=document_id),
+                )
+                for document_id in unique_document_ids
+            ]
+        )
