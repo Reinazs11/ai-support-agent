@@ -115,5 +115,6 @@ Response includes category, priority, escalation flag, and rationale.
 
 ## POST /evals/run
 
-Runs an evaluation dataset in controlled/local mode. This endpoint should be
-protected or disabled before public deployment.
+Placeholder endpoint for future API-triggered evaluation runs. Use
+`python -m scripts.run_eval` for the current controlled local evaluation flow.
+This endpoint should be protected or disabled before public deployment.
