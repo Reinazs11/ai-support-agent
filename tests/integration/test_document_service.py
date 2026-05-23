@@ -97,8 +97,8 @@ async def test_ingest_parses_and_persists_chunks(tmp_path) -> None:
     assert response.chunks_indexed == len(chunks)
     assert response.vectors_indexed == 0
     assert response.warnings == [(
-        "Embedding and Qdrant indexing were skipped because embedding configuration "
-        "is not available."
+        "Embedding and Qdrant indexing were skipped because the configured embedding "
+        "provider is unavailable or not configured."
     )]
     assert len(chunks) > 1
 

@@ -10,7 +10,11 @@ from app.db.models import Document, DocumentChunk
 from app.documents.chunking import chunk_text
 from app.documents.parsers import SUPPORTED_EXTENSIONS, parse_document
 from app.documents.schemas import DocumentIngestResponse, DocumentUploadResponse
-from app.rag.embeddings import EmbeddingConfigurationError, EmbeddingService, OpenAIEmbeddingService
+from app.rag.embeddings import (
+    EmbeddingConfigurationError,
+    EmbeddingService,
+    build_embedding_service,
+)
 from app.rag.vector_store import ChunkVectorRecord, QdrantVectorStore, VectorStore
 
 
@@ -50,11 +54,8 @@ class DocumentService:
         self.embedding_service = embedding_service
         self.vector_store = vector_store
 
-        if self.embedding_service is None and settings.openai_api_key:
-            self.embedding_service = OpenAIEmbeddingService(
-                api_key=settings.openai_api_key,
-                model=settings.openai_embedding_model,
-            )
+        if self.embedding_service is None:
+            self.embedding_service = build_embedding_service(settings)
         if self.vector_store is None and self.embedding_service is not None:
             self.vector_store = QdrantVectorStore(url=settings.qdrant_url)
 
@@ -135,8 +136,8 @@ class DocumentService:
             warnings.append("Document parsed successfully but no text chunks were produced.")
         if chunks and not vectors_indexed:
             warnings.append(
-                "Embedding and Qdrant indexing were skipped because embedding configuration "
-                "is not available."
+                "Embedding and Qdrant indexing were skipped because the configured embedding "
+                "provider is unavailable or not configured."
             )
 
         return DocumentIngestResponse(

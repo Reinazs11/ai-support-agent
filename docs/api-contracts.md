@@ -27,7 +27,8 @@ Response:
 ## POST /ingest/{document_id}
 
 Parses the stored document, chunks its text, and persists chunk metadata in
-PostgreSQL. Embedding generation and Qdrant indexing are still pending.
+PostgreSQL. When the configured embedding provider is available, it also
+generates embeddings and indexes chunk vectors in Qdrant.
 
 Response:
 
@@ -37,7 +38,9 @@ Response:
   "status": "ingested",
   "chunks_indexed": 3,
   "vectors_indexed": 0,
-  "warnings": []
+  "warnings": [
+    "Embedding and Qdrant indexing were skipped because the configured embedding provider is unavailable or not configured."
+  ]
 }
 ```
 
