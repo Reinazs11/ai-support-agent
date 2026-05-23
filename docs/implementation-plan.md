@@ -26,9 +26,9 @@ execution was validated locally with Docker Compose.
 - Chunk documents, generate embeddings, create Qdrant collection, and index chunks.
 - Store chunk metadata in PostgreSQL with Qdrant point IDs.
 
-Status: in progress. The first Phase 3 slice persists uploaded files locally,
-stores document metadata in PostgreSQL, parses stored files, and writes chunks to
-PostgreSQL. Embeddings and Qdrant indexing remain pending.
+Status: in progress. Uploaded files are stored locally, document metadata and
+chunks are persisted in PostgreSQL, and ingestion can generate embeddings and
+index chunks in Qdrant when `OPENAI_API_KEY` is configured.
 
 ## Phase 4: RAG
 

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     )
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "company_knowledge"
+    qdrant_vector_size: int = 1536
 
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4.1-mini"
