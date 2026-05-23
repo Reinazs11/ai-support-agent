@@ -97,31 +97,31 @@ copy .env.example .env
 Configure embeddings in `.env`:
 
 ```powershell
+OPENAI_API_KEY=your_key_here
 EMBEDDING_PROVIDER=openai
-EMBEDDING_API_KEY=your_key_here
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-`OPENAI_API_KEY` is still supported for embeddings when `EMBEDDING_API_KEY` is
-empty. For future local embeddings, use `EMBEDDING_PROVIDER=local`; the provider
-is reserved but not implemented yet, so ingestion will store chunks and skip
-vector indexing until a local embedding service is added.
+`OPENAI_API_KEY` is the simplest local setup and is used by both embeddings and
+chat. Use `EMBEDDING_API_KEY` only if you need a separate key for embeddings.
+For future local embeddings, use `EMBEDDING_PROVIDER=local`; the provider is
+reserved but not implemented yet, so ingestion will store chunks and skip vector
+indexing until a local embedding service is added.
 
 Configure answer generation in `.env`:
 
 ```powershell
 CHAT_PROVIDER=openai
-CHAT_API_KEY=your_key_here
-CHAT_MODEL=gpt-4.1-mini
+CHAT_MODEL=gpt-5.4-nano
 CHAT_PROMPT_COST_PER_1M_TOKENS=0
 CHAT_COMPLETION_COST_PER_1M_TOKENS=0
 ```
 
-`OPENAI_API_KEY` is also accepted for chat when `CHAT_API_KEY` is empty. Use
-`CHAT_PROVIDER=disabled` when you want retrieval and citations without calling
-an LLM. Cost estimate rates are intentionally configurable because provider
-pricing changes over time; leave both rates at `0` to return token counts without
-an estimated dollar cost.
+Use `CHAT_API_KEY` only if you need a separate key for chat. Use
+`CHAT_PROVIDER=disabled` when you want retrieval and citations without calling an
+LLM. Cost estimate rates are intentionally configurable because provider pricing
+changes over time; leave both rates at `0` to return token counts without an
+estimated dollar cost.
 
 The RAG prompt context is capped before generation:
 

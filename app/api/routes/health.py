@@ -9,6 +9,9 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse)
 async def healthcheck() -> HealthResponse:
     settings = get_settings()
+    openai_configured = bool(
+        settings.openai_api_key or settings.embedding_api_key or settings.chat_api_key
+    )
     return HealthResponse(
         status="ok",
         app=settings.app_name,
@@ -16,6 +19,6 @@ async def healthcheck() -> HealthResponse:
         dependencies={
             "postgres": "configured",
             "qdrant": "configured",
-            "openai": "configured" if settings.openai_api_key else "missing_api_key",
+            "openai": "configured" if openai_configured else "missing_api_key",
         },
     )
