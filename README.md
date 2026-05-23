@@ -41,6 +41,8 @@ Implemented:
 - Retrieval from Qdrant in `/chat`, grounded LLM answer generation, and source
   citations when results exist.
 - Initial chat model provider configuration for OpenAI or disabled mode.
+- Character-based context budgeting before LLM generation, with logs for
+  retrieved count, context count, context size, truncation, model, top-k, and latency.
 - Placeholder endpoint for evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
@@ -51,7 +53,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Metadata-filtered retrieval, context budgeting, and token/cost estimates.
+- Metadata-filtered retrieval and token/cost estimates.
 - LangGraph agent workflow.
 - Langfuse tracing.
 - Deployment setup.
@@ -115,6 +117,15 @@ CHAT_MODEL=gpt-4.1-mini
 `OPENAI_API_KEY` is also accepted for chat when `CHAT_API_KEY` is empty. Use
 `CHAT_PROVIDER=disabled` when you want retrieval and citations without calling
 an LLM.
+
+The RAG prompt context is capped before generation:
+
+```powershell
+RAG_CONTEXT_MAX_CHARS=6000
+```
+
+The current limit is character-based, not token-based. Token and cost estimates
+remain planned for a later observability increment.
 
 Start local infrastructure:
 

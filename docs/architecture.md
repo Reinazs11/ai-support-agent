@@ -30,7 +30,8 @@ tickets, and later executes controlled workflows with LangGraph.
    chunks.
 6. The configured chat model generates an answer, and the API returns citations
    for the sources actually retrieved.
-7. Logs record top-k, source IDs and scores, model names, and latency. Cost
+7. Logs record top-k, retrieved count, context count, context size, truncation,
+   source IDs and scores, model names, provider error type, and latency. Cost
    estimates and tracing are still planned.
 
 ## Key Decisions
@@ -44,4 +45,6 @@ tickets, and later executes controlled workflows with LangGraph.
   changing document ingestion contracts.
 - Chat model configuration is provider-based. OpenAI is the first implemented
   provider, and disabled mode keeps retrieval testable without LLM calls.
+- RAG context limiting is currently character-based for simplicity. Token-aware
+  budgeting can replace it once model-specific cost tracking is added.
 - Safety fallback is mandatory when there is insufficient retrieved context.

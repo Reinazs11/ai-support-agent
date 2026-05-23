@@ -73,6 +73,10 @@ Generated answers are prompted only with the chunks returned by retrieval. When
 no chunks are available, the answer uses the explicit fallback:
 `Nao encontrei informacao suficiente para responder com seguranca.`
 
+Before calling the chat model, the service applies `RAG_CONTEXT_MAX_CHARS` to
+the retrieved chunk text. Sources in the response reflect chunks included in the
+bounded context, not every raw vector-search result.
+
 ## POST /tickets/classify
 
 Request:
