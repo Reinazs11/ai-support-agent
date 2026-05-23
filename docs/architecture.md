@@ -26,10 +26,12 @@ tickets, and later executes controlled workflows with LangGraph.
 2. The ingest flow parses content and creates chunks with metadata.
 3. Embeddings are generated and stored in Qdrant.
 4. Document and chunk metadata are stored in PostgreSQL.
-5. `/chat` retrieves top-k chunks and returns citations for the sources actually
-   retrieved.
-6. A later RAG step will build a grounded prompt and generate the final answer.
-7. Logs and traces record request IDs, retrieval inputs, model names, latency, and cost.
+5. `/chat` retrieves top-k chunks and builds a grounded prompt from only those
+   chunks.
+6. The configured chat model generates an answer, and the API returns citations
+   for the sources actually retrieved.
+7. Logs record top-k, source IDs and scores, model names, and latency. Cost
+   estimates and tracing are still planned.
 
 ## Key Decisions
 
@@ -40,4 +42,6 @@ tickets, and later executes controlled workflows with LangGraph.
 - Embedding configuration is provider-based. OpenAI is the first implemented
   provider, and local embeddings are reserved as a future provider without
   changing document ingestion contracts.
+- Chat model configuration is provider-based. OpenAI is the first implemented
+  provider, and disabled mode keeps retrieval testable without LLM calls.
 - Safety fallback is mandatory when there is insufficient retrieved context.

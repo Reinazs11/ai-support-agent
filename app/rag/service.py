@@ -1,4 +1,14 @@
+from time import perf_counter
+
+import structlog
+
 from app.core.config import Settings, get_settings
+from app.rag.chat_models import (
+    INSUFFICIENT_CONTEXT_ANSWER,
+    ChatModelProviderError,
+    ChatModelService,
+    build_chat_model_service,
+)
 from app.rag.embeddings import (
     EmbeddingConfigurationError,
     EmbeddingService,
@@ -7,6 +17,8 @@ from app.rag.embeddings import (
 from app.rag.schemas import ChatRequest, ChatResponse, SourceCitation
 from app.rag.vector_store import QdrantVectorStore, VectorStore
 
+logger = structlog.get_logger(__name__)
+
 
 class RagService:
     def __init__(
@@ -14,10 +26,12 @@ class RagService:
         settings: Settings | None = None,
         embedding_service: EmbeddingService | None = None,
         vector_store: VectorStore | None = None,
+        chat_model_service: ChatModelService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.embedding_service = embedding_service or build_embedding_service(self.settings)
         self.vector_store = vector_store
+        self.chat_model_service = chat_model_service or build_chat_model_service(self.settings)
         if self.vector_store is None and self.embedding_service is not None:
             self.vector_store = QdrantVectorStore(url=self.settings.qdrant_url)
 
@@ -55,36 +69,142 @@ class RagService:
             )
 
         top_k = request.top_k or self.settings.retrieval_top_k
+        retrieval_started = perf_counter()
         retrieved_chunks = self.vector_store.search_similar(
             collection_name=self.settings.qdrant_collection,
             vector=question_vectors[0],
             limit=top_k,
         )
+        retrieval_latency_ms = (perf_counter() - retrieval_started) * 1000
         if not retrieved_chunks:
+            self._log_chat_result(
+                status="no_results",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=None,
+                source_count=0,
+            )
             return ChatResponse(
-                answer=(
-                    "Nao encontrei trechos relevantes na base vetorial para responder com "
-                    "seguranca."
-                ),
+                answer=INSUFFICIENT_CONTEXT_ANSWER,
                 sources=[],
                 confidence="low",
                 retrieval_status="no_results",
             )
 
+        sources = [
+            SourceCitation(
+                document_id=chunk.document_id,
+                title=chunk.filename,
+                chunk_id=chunk.chunk_id,
+                score=chunk.score,
+            )
+            for chunk in retrieved_chunks
+        ]
+
+        if self.chat_model_service is None:
+            self._log_chat_result(
+                status="generation_not_configured",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=None,
+                source_count=len(sources),
+                sources=sources,
+            )
+            return ChatResponse(
+                answer=(
+                    "A busca encontrou fontes, mas a geracao de resposta por LLM ainda nao "
+                    "esta configurada."
+                ),
+                sources=sources,
+                confidence="low",
+                retrieval_status="generation_not_configured",
+            )
+
+        generation_started = perf_counter()
+        try:
+            model_result = await self.chat_model_service.generate_answer(
+                question=request.question,
+                chunks=retrieved_chunks,
+            )
+        except ChatModelProviderError:
+            generation_latency_ms = (perf_counter() - generation_started) * 1000
+            self._log_chat_result(
+                status="generation_failed",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=generation_latency_ms,
+                source_count=len(sources),
+                sources=sources,
+            )
+            return ChatResponse(
+                answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
+                sources=sources,
+                confidence="low",
+                retrieval_status="generation_failed",
+            )
+
+        generation_latency_ms = (perf_counter() - generation_started) * 1000
+        if model_result.answer == INSUFFICIENT_CONTEXT_ANSWER:
+            self._log_chat_result(
+                status="insufficient_context",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=generation_latency_ms,
+                source_count=len(sources),
+                sources=sources,
+                model=model_result.model,
+            )
+            return ChatResponse(
+                answer=model_result.answer,
+                sources=sources,
+                confidence="low",
+                retrieval_status="insufficient_context",
+            )
+
+        self._log_chat_result(
+            status="generated",
+            top_k=top_k,
+            retrieval_latency_ms=retrieval_latency_ms,
+            generation_latency_ms=generation_latency_ms,
+            source_count=len(sources),
+            sources=sources,
+            model=model_result.model,
+        )
         return ChatResponse(
-            answer=(
-                "Encontrei fontes relevantes na base vetorial, mas a geracao de resposta "
-                "RAG com LLM ainda nao esta implementada."
-            ),
-            sources=[
-                SourceCitation(
-                    document_id=chunk.document_id,
-                    title=chunk.filename,
-                    chunk_id=chunk.chunk_id,
-                    score=chunk.score,
-                )
-                for chunk in retrieved_chunks
-            ],
+            answer=model_result.answer,
+            sources=sources,
             confidence="medium",
-            retrieval_status="retrieved",
+            retrieval_status="generated",
+        )
+
+    def _log_chat_result(
+        self,
+        *,
+        status: str,
+        top_k: int,
+        retrieval_latency_ms: float,
+        generation_latency_ms: float | None,
+        source_count: int,
+        sources: list[SourceCitation] | None = None,
+        model: str | None = None,
+    ) -> None:
+        logger.info(
+            "rag_chat_completed",
+            retrieval_status=status,
+            top_k=top_k,
+            retrieval_latency_ms=round(retrieval_latency_ms, 2),
+            generation_latency_ms=(
+                round(generation_latency_ms, 2) if generation_latency_ms is not None else None
+            ),
+            chat_provider=self.settings.chat_provider,
+            chat_model=model or self.settings.chat_model or self.settings.openai_chat_model,
+            source_count=source_count,
+            sources=[
+                {
+                    "document_id": source.document_id,
+                    "chunk_id": source.chunk_id,
+                    "score": source.score,
+                }
+                for source in sources or []
+            ],
         )

@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     embedding_api_key: str = ""
     embedding_model: str = ""
 
+    chat_provider: Literal["openai", "disabled"] = "openai"
+    chat_api_key: str = ""
+    chat_model: str = ""
+
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"

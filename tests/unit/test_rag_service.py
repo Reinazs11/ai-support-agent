@@ -1,6 +1,11 @@
 import pytest
 
 from app.core.config import Settings
+from app.rag.chat_models import (
+    INSUFFICIENT_CONTEXT_ANSWER,
+    ChatModelProviderError,
+    ChatModelResult,
+)
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
 from app.rag.vector_store import ChunkVectorRecord, RetrievedChunk
@@ -44,6 +49,29 @@ class FakeVectorStore:
         return self.results
 
 
+class FakeChatModelService:
+    model = "fake-chat-model"
+
+    def __init__(
+        self,
+        answer: str = "Refunds are available within 30 days.",
+        should_fail: bool = False,
+    ) -> None:
+        self.answer = answer
+        self.should_fail = should_fail
+        self.requests: list[tuple[str, list[RetrievedChunk]]] = []
+
+    async def generate_answer(
+        self,
+        question: str,
+        chunks: list[RetrievedChunk],
+    ) -> ChatModelResult:
+        self.requests.append((question, chunks))
+        if self.should_fail:
+            raise ChatModelProviderError("fake provider failed")
+        return ChatModelResult(answer=self.answer, model=self.model)
+
+
 @pytest.mark.asyncio
 async def test_chat_reports_not_configured_without_embedding_service() -> None:
     service = RagService(settings=Settings(embedding_provider="disabled"))
@@ -75,7 +103,62 @@ async def test_chat_reports_no_results_when_vector_search_is_empty() -> None:
 
 
 @pytest.mark.asyncio
-async def test_chat_returns_retrieved_sources_without_llm_generation() -> None:
+async def test_chat_generates_answer_from_retrieved_chunks() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    chat_model_service = FakeChatModelService()
+    service = RagService(
+        settings=Settings(retrieval_top_k=5),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=chat_model_service,
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?", top_k=1))
+
+    assert response.retrieval_status == "generated"
+    assert response.confidence == "medium"
+    assert len(response.sources) == 1
+    assert response.sources[0].document_id == "doc-1"
+    assert response.sources[0].chunk_id == "chunk-1"
+    assert response.sources[0].title == "policy.txt"
+    assert response.sources[0].score == 0.92
+    assert response.answer == "Refunds are available within 30 days."
+    assert chat_model_service.requests == [("What is the refund policy?", [result])]
+
+
+@pytest.mark.asyncio
+async def test_chat_reports_generation_not_configured_after_retrieval() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    service = RagService(
+        settings=Settings(chat_provider="disabled"),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "generation_not_configured"
+    assert response.confidence == "low"
+    assert response.sources[0].chunk_id == "chunk-1"
+    assert "LLM ainda nao esta configurada" in response.answer
+
+
+@pytest.mark.asyncio
+async def test_chat_reports_generation_failure_from_provider() -> None:
     result = RetrievedChunk(
         document_id="doc-1",
         chunk_id="chunk-1",
@@ -88,15 +171,37 @@ async def test_chat_returns_retrieved_sources_without_llm_generation() -> None:
         settings=Settings(retrieval_top_k=5),
         embedding_service=FakeEmbeddingService(),
         vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(should_fail=True),
     )
 
-    response = await service.answer(ChatRequest(question="What is the refund policy?", top_k=1))
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
 
-    assert response.retrieval_status == "retrieved"
-    assert response.confidence == "medium"
-    assert len(response.sources) == 1
-    assert response.sources[0].document_id == "doc-1"
+    assert response.retrieval_status == "generation_failed"
+    assert response.confidence == "low"
     assert response.sources[0].chunk_id == "chunk-1"
-    assert response.sources[0].title == "policy.txt"
-    assert response.sources[0].score == 0.92
-    assert "geracao de resposta RAG" in response.answer
+    assert "provedor de LLM" in response.answer
+
+
+@pytest.mark.asyncio
+async def test_chat_marks_model_fallback_as_insufficient_context() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refund policy summary without the requested exception.",
+        score=0.7,
+    )
+    service = RagService(
+        settings=Settings(retrieval_top_k=5),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(answer=INSUFFICIENT_CONTEXT_ANSWER),
+    )
+
+    response = await service.answer(ChatRequest(question="What exceptions apply?"))
+
+    assert response.retrieval_status == "insufficient_context"
+    assert response.confidence == "low"
+    assert response.answer == INSUFFICIENT_CONTEXT_ANSWER
+    assert response.sources[0].chunk_id == "chunk-1"
