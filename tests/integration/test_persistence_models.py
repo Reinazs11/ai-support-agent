@@ -31,6 +31,8 @@ def test_document_and_chunk_metadata_can_be_persisted() -> None:
         id=document_id,
         filename="handbook.md",
         content_type="text/markdown",
+        storage_path="uploads/documents/handbook.md",
+        size_bytes=1024,
     )
     document.chunks.append(
         DocumentChunk(
@@ -48,6 +50,8 @@ def test_document_and_chunk_metadata_can_be_persisted() -> None:
 
     assert persisted.status == "registered"
     assert persisted.filename == "handbook.md"
+    assert persisted.storage_path == "uploads/documents/handbook.md"
+    assert persisted.size_bytes == 1024
     assert len(persisted.chunks) == 1
     assert persisted.chunks[0].qdrant_point_id == "point-1"
 

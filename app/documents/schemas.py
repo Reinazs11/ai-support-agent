@@ -5,6 +5,7 @@ class DocumentUploadResponse(BaseModel):
     document_id: str
     filename: str
     content_type: str | None = None
+    size_bytes: int | None = None
     status: str = "registered"
     next_step: str = "POST /ingest/{document_id}"
 

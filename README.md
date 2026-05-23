@@ -25,8 +25,8 @@ quality, and honest documentation about what is complete and what is still plann
 
 ## Current Status
 
-Phase 1, the project foundation, is in place. Phase 2 persistence work is being
-developed in a feature branch before review and merge.
+Phase 1, the project foundation, is in place. Phase 2 persistence is merged.
+The first Phase 3 slice is being developed in a feature branch.
 
 Implemented:
 
@@ -34,7 +34,8 @@ Implemented:
 - Environment-based settings.
 - Structured logging setup.
 - Initial HTTP contracts.
-- Placeholder endpoints for documents, ingestion, chat, tickets, and evaluation.
+- Document upload metadata persistence and document chunk persistence.
+- Placeholder endpoints for chat and evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -43,9 +44,7 @@ Implemented:
 
 Still pending:
 
-- PostgreSQL execution of the initial Alembic migration.
-- Real persistence for uploaded documents and metadata.
-- Real parsing-to-chunk persistence flow.
+- Object storage or durable file retention policy for uploaded documents.
 - OpenAI embeddings.
 - Qdrant indexing and retrieval.
 - Real RAG answer generation.
