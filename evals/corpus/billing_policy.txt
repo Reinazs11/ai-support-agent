@@ -1,0 +1,11 @@
+Billing Policy
+
+Invoices are emailed to the billing contact on the first day of each month.
+
+If a card payment fails, support should ask the customer to update the card and
+the system should retry the payment after 24 hours and again after 72 hours.
+
+Billing contact changes require approval from the account owner.
+
+Customers must update their tax ID before the invoice is issued. After an
+invoice is issued, tax ID corrections require a billing support ticket.

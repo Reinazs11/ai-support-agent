@@ -1,0 +1,10 @@
+Support SLA
+
+Critical outage tickets receive a first response within 1 hour, every day.
+
+High priority tickets receive a first response within 4 business hours.
+
+Standard priority tickets receive a first response by the next business day.
+
+Chat support is available Monday through Friday, from 09:00 to 18:00 Sao Paulo
+time.
