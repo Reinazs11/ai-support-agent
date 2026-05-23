@@ -1,0 +1,2 @@
+{"id":"refund-window","question":"What is the refund window?","expected_status":"generated","expected_answer_contains_any":[["30 days","30 dias"]],"expected_source_titles":["live-smoke-policy.txt"],"top_k":1}
+{"id":"refund-escalation","question":"What should happen after 30 days?","expected_status":"generated","expected_answer_contains_any":[["escalated","escaladas","escalad"]],"expected_source_titles":["live-smoke-policy.txt"],"top_k":1}

@@ -45,7 +45,7 @@ Implemented:
 - Character-based context budgeting before LLM generation, with logs for
   retrieved count, context count, context size, truncation, model, top-k, and latency.
 - Token usage and configurable cost estimates for generated chat responses.
-- Placeholder endpoint for evaluation.
+- Initial CLI evaluation runner for deterministic `/chat` checks.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -174,6 +174,16 @@ python -m scripts.smoke_live_rag --max-cost-usd 0.005
 The smoke test uploads a tiny `.txt` document, indexes one small embedding batch,
 asks one short question with `top_k=1`, and fails if the returned cost estimate
 exceeds the configured limit.
+
+Run the initial deterministic RAG evaluation against the local API:
+
+```powershell
+python -m scripts.run_eval --document-id <document_id_from_smoke_test> --max-total-cost-usd 0.05
+```
+
+The initial dataset lives at `evals/initial_rag.jsonl` and assumes the smoke-test
+document `live-smoke-policy.txt` has been ingested. Reports are written under
+`reports/evals/`, which is ignored by Git.
 
 ## Validation
 

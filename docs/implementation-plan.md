@@ -58,6 +58,13 @@ deeper provider retry behavior remain pending.
 - Implement `scripts/run_eval.py` against the real chat service.
 - Report answer correctness, correct source retrieval, fallback quality, cost, and latency.
 
+Status: started. A small JSONL dataset and deterministic CLI runner are in place
+for the smoke-test document. The runner calls the real `/chat` endpoint, checks
+expected answer substrings or accepted variants, retrieval status, source
+titles, latency, and cost, then writes JSON and Markdown reports. Expanding the
+dataset to 30 questions and adding richer answer-quality evaluation remain
+pending.
+
 ## Phase 6: Agent And Workflows
 
 - Add LangGraph state and nodes for direct answer, retrieval, ticket classification,
