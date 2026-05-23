@@ -17,7 +17,7 @@
 
 Status: implemented in the Phase 2 branch with the initial schema migration and
 SQLite-backed integration tests for model metadata writes. PostgreSQL migration
-execution should be validated when Docker is available locally.
+execution was validated locally with Docker Compose.
 
 ## Phase 3: Ingestion And Embeddings
 
@@ -25,6 +25,10 @@ execution should be validated when Docker is available locally.
 - Parse `.pdf`, `.md`, `.txt`, and `.csv`.
 - Chunk documents, generate embeddings, create Qdrant collection, and index chunks.
 - Store chunk metadata in PostgreSQL with Qdrant point IDs.
+
+Status: in progress. The first Phase 3 slice persists uploaded files locally,
+stores document metadata in PostgreSQL, parses stored files, and writes chunks to
+PostgreSQL. Embeddings and Qdrant indexing remain pending.
 
 ## Phase 4: RAG
 

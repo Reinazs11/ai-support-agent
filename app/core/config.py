@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     retrieval_top_k: int = 5
     max_upload_mb: int = 25
+    upload_dir: str = "uploads/documents"
 
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

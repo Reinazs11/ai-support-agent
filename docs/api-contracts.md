@@ -18,6 +18,7 @@ Response:
   "document_id": "uuid",
   "filename": "handbook.pdf",
   "content_type": "application/pdf",
+  "size_bytes": 12345,
   "status": "registered",
   "next_step": "POST /ingest/{document_id}"
 }
@@ -25,8 +26,19 @@ Response:
 
 ## POST /ingest/{document_id}
 
-Starts or simulates document ingestion. The initial scaffold returns
-`pending_integration` until persistence, embeddings, and Qdrant indexing exist.
+Parses the stored document, chunks its text, and persists chunk metadata in
+PostgreSQL. Embedding generation and Qdrant indexing are still pending.
+
+Response:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "ingested",
+  "chunks_indexed": 3,
+  "warnings": []
+}
+```
 
 ## POST /chat
 
