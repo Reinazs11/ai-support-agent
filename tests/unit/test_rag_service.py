@@ -26,6 +26,7 @@ class FakeVectorStore:
         self.results = results or []
         self.search_limit: int | None = None
         self.search_vector: list[float] | None = None
+        self.search_document_ids: list[str] | None = None
 
     def delete_document_vectors(self, collection_name: str, document_id: str) -> None:
         pass
@@ -43,9 +44,11 @@ class FakeVectorStore:
         collection_name: str,
         vector: list[float],
         limit: int,
+        document_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         self.search_vector = vector
         self.search_limit = limit
+        self.search_document_ids = document_ids
         return self.results
 
 
@@ -103,7 +106,26 @@ async def test_chat_reports_no_results_when_vector_search_is_empty() -> None:
     assert response.sources == []
     assert vector_store.search_vector == [0.1, 0.2, 0.3]
     assert vector_store.search_limit == 3
+    assert vector_store.search_document_ids == []
     assert embedding_service.requests == [["What is the refund policy?"]]
+
+
+@pytest.mark.asyncio
+async def test_chat_passes_document_ids_to_vector_search() -> None:
+    embedding_service = FakeEmbeddingService()
+    vector_store = FakeVectorStore()
+    service = RagService(
+        settings=Settings(retrieval_top_k=3),
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+    )
+
+    response = await service.answer(
+        ChatRequest(question="What is the refund policy?", document_ids=["doc-1", "doc-2"])
+    )
+
+    assert response.retrieval_status == "no_results"
+    assert vector_store.search_document_ids == ["doc-1", "doc-2"]
 
 
 @pytest.mark.asyncio
