@@ -1,3 +1,4 @@
+from dataclasses import replace
 from time import perf_counter
 
 import structlog
@@ -15,7 +16,7 @@ from app.rag.embeddings import (
     build_embedding_service,
 )
 from app.rag.schemas import ChatRequest, ChatResponse, SourceCitation
-from app.rag.vector_store import QdrantVectorStore, VectorStore
+from app.rag.vector_store import QdrantVectorStore, RetrievedChunk, VectorStore
 
 logger = structlog.get_logger(__name__)
 
@@ -82,13 +83,37 @@ class RagService:
                 top_k=top_k,
                 retrieval_latency_ms=retrieval_latency_ms,
                 generation_latency_ms=None,
-                source_count=0,
+                retrieved_count=0,
+                context_source_count=0,
+                context_chars=0,
+                context_truncated=False,
             )
             return ChatResponse(
                 answer=INSUFFICIENT_CONTEXT_ANSWER,
                 sources=[],
                 confidence="low",
                 retrieval_status="no_results",
+            )
+
+        context_chunks, context_chars, context_truncated = self._limit_context_chunks(
+            retrieved_chunks
+        )
+        if not context_chunks:
+            self._log_chat_result(
+                status="insufficient_context",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=None,
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=0,
+                context_chars=0,
+                context_truncated=context_truncated,
+            )
+            return ChatResponse(
+                answer=INSUFFICIENT_CONTEXT_ANSWER,
+                sources=[],
+                confidence="low",
+                retrieval_status="insufficient_context",
             )
 
         sources = [
@@ -98,7 +123,7 @@ class RagService:
                 chunk_id=chunk.chunk_id,
                 score=chunk.score,
             )
-            for chunk in retrieved_chunks
+            for chunk in context_chunks
         ]
 
         if self.chat_model_service is None:
@@ -107,7 +132,10 @@ class RagService:
                 top_k=top_k,
                 retrieval_latency_ms=retrieval_latency_ms,
                 generation_latency_ms=None,
-                source_count=len(sources),
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=len(sources),
+                context_chars=context_chars,
+                context_truncated=context_truncated,
                 sources=sources,
             )
             return ChatResponse(
@@ -124,17 +152,41 @@ class RagService:
         try:
             model_result = await self.chat_model_service.generate_answer(
                 question=request.question,
-                chunks=retrieved_chunks,
+                chunks=context_chunks,
             )
-        except ChatModelProviderError:
+        except ChatModelProviderError as exc:
             generation_latency_ms = (perf_counter() - generation_started) * 1000
             self._log_chat_result(
                 status="generation_failed",
                 top_k=top_k,
                 retrieval_latency_ms=retrieval_latency_ms,
                 generation_latency_ms=generation_latency_ms,
-                source_count=len(sources),
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=len(sources),
+                context_chars=context_chars,
+                context_truncated=context_truncated,
                 sources=sources,
+                error_type=type(exc).__name__,
+            )
+            return ChatResponse(
+                answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
+                sources=sources,
+                confidence="low",
+                retrieval_status="generation_failed",
+            )
+        except Exception as exc:
+            generation_latency_ms = (perf_counter() - generation_started) * 1000
+            self._log_chat_result(
+                status="generation_failed",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=generation_latency_ms,
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=len(sources),
+                context_chars=context_chars,
+                context_truncated=context_truncated,
+                sources=sources,
+                error_type=type(exc).__name__,
             )
             return ChatResponse(
                 answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
@@ -150,7 +202,10 @@ class RagService:
                 top_k=top_k,
                 retrieval_latency_ms=retrieval_latency_ms,
                 generation_latency_ms=generation_latency_ms,
-                source_count=len(sources),
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=len(sources),
+                context_chars=context_chars,
+                context_truncated=context_truncated,
                 sources=sources,
                 model=model_result.model,
             )
@@ -166,7 +221,10 @@ class RagService:
             top_k=top_k,
             retrieval_latency_ms=retrieval_latency_ms,
             generation_latency_ms=generation_latency_ms,
-            source_count=len(sources),
+            retrieved_count=len(retrieved_chunks),
+            context_source_count=len(sources),
+            context_chars=context_chars,
+            context_truncated=context_truncated,
             sources=sources,
             model=model_result.model,
         )
@@ -177,6 +235,41 @@ class RagService:
             retrieval_status="generated",
         )
 
+    def _limit_context_chunks(
+        self,
+        retrieved_chunks: list[RetrievedChunk],
+    ) -> tuple[list[RetrievedChunk], int, bool]:
+        context_chunks: list[RetrievedChunk] = []
+        context_chars = 0
+        truncated = False
+        max_chars = self.settings.rag_context_max_chars
+
+        for chunk in retrieved_chunks:
+            text = chunk.text.strip()
+            if not text:
+                truncated = True
+                continue
+
+            remaining_chars = max_chars - context_chars
+            if remaining_chars <= 0:
+                truncated = True
+                break
+
+            if len(text) > remaining_chars:
+                text = text[:remaining_chars].rstrip()
+                truncated = True
+
+            if not text:
+                break
+
+            context_chunks.append(replace(chunk, text=text))
+            context_chars += len(text)
+
+        if len(context_chunks) < len(retrieved_chunks):
+            truncated = True
+
+        return context_chunks, context_chars, truncated
+
     def _log_chat_result(
         self,
         *,
@@ -184,9 +277,13 @@ class RagService:
         top_k: int,
         retrieval_latency_ms: float,
         generation_latency_ms: float | None,
-        source_count: int,
+        retrieved_count: int,
+        context_source_count: int,
+        context_chars: int,
+        context_truncated: bool,
         sources: list[SourceCitation] | None = None,
         model: str | None = None,
+        error_type: str | None = None,
     ) -> None:
         logger.info(
             "rag_chat_completed",
@@ -198,7 +295,12 @@ class RagService:
             ),
             chat_provider=self.settings.chat_provider,
             chat_model=model or self.settings.chat_model or self.settings.openai_chat_model,
-            source_count=source_count,
+            retrieved_count=retrieved_count,
+            context_source_count=context_source_count,
+            context_chars=context_chars,
+            context_max_chars=self.settings.rag_context_max_chars,
+            context_truncated=context_truncated,
+            error_type=error_type,
             sources=[
                 {
                     "document_id": source.document_id,

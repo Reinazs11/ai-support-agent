@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     chunk_size: int = 900
     chunk_overlap: int = 150
     retrieval_top_k: int = 5
+    rag_context_max_chars: int = Field(default=6000, ge=1)
     max_upload_mb: int = 25
     upload_dir: str = "uploads/documents"
 
