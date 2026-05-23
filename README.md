@@ -178,12 +178,15 @@ exceeds the configured limit.
 Run the initial deterministic RAG evaluation against the local API:
 
 ```powershell
-python -m scripts.run_eval --document-id <document_id_from_smoke_test> --max-total-cost-usd 0.05
+python -m scripts.seed_eval_corpus
+python -m scripts.run_eval --document-manifest-path reports/evals/eval-corpus-manifest.json --max-total-cost-usd 0.05
 ```
 
-The initial dataset lives at `evals/initial_rag.jsonl` and assumes the smoke-test
-document `live-smoke-policy.txt` has been ingested. Reports are written under
-`reports/evals/`, which is ignored by Git.
+The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
+synthetic corpus under `evals/corpus/`. The seed script uploads and ingests those
+documents, then writes a local manifest under `reports/evals/`, which is ignored
+by Git. The eval runner uses that manifest to filter each question to the
+expected document IDs.
 
 ## Validation
 
