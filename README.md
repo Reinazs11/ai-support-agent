@@ -35,7 +35,8 @@ Implemented:
 - Structured logging setup.
 - Initial HTTP contracts.
 - Document upload metadata persistence and document chunk persistence.
-- Embedding and Qdrant indexing path when `OPENAI_API_KEY` is configured.
+- Embedding and Qdrant indexing path when an embedding provider is configured.
+- Initial embedding provider configuration for OpenAI, future local models, or disabled mode.
 - Placeholder endpoints for chat and evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
@@ -58,7 +59,7 @@ Still pending:
 - FastAPI and Pydantic v2
 - PostgreSQL, SQLAlchemy 2.x, and Alembic
 - Qdrant for vector search
-- OpenAI SDK for LLM and embedding calls
+- OpenAI SDK for initial LLM and embedding calls
 - LangGraph for agent workflows
 - Langfuse for LLM observability
 - PyMuPDF for PDF parsing
@@ -86,6 +87,19 @@ Create a local environment file:
 ```powershell
 copy .env.example .env
 ```
+
+Configure embeddings in `.env`:
+
+```powershell
+EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=your_key_here
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+`OPENAI_API_KEY` is still supported for embeddings when `EMBEDDING_API_KEY` is
+empty. For future local embeddings, use `EMBEDDING_PROVIDER=local`; the provider
+is reserved but not implemented yet, so ingestion will store chunks and skip
+vector indexing until a local embedding service is added.
 
 Start local infrastructure:
 

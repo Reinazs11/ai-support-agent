@@ -28,7 +28,9 @@ execution was validated locally with Docker Compose.
 
 Status: in progress. Uploaded files are stored locally, document metadata and
 chunks are persisted in PostgreSQL, and ingestion can generate embeddings and
-index chunks in Qdrant when `OPENAI_API_KEY` is configured.
+index chunks in Qdrant when an embedding provider is configured. The first
+provider is OpenAI, but settings now use a generic embedding provider layer so a
+local provider can replace it later without changing the ingestion contract.
 
 ## Phase 4: RAG
 

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,6 +24,10 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "company_knowledge"
     qdrant_vector_size: int = 1536
+
+    embedding_provider: Literal["openai", "local", "disabled"] = "openai"
+    embedding_api_key: str = ""
+    embedding_model: str = ""
 
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4.1-mini"

@@ -13,7 +13,8 @@ tickets, and later executes controlled workflows with LangGraph.
 - `core`: settings, logging, shared schemas, errors, and cross-cutting behavior.
 - `db`: SQLAlchemy session, base models, and future migrations.
 - `documents`: upload registration, parsing, normalization, chunking, and metadata.
-- `rag`: embeddings, Qdrant indexing, retrieval, prompt composition, and citations.
+- `rag`: embedding provider selection, Qdrant indexing, retrieval, prompt
+  composition, and citations.
 - `tickets`: deterministic first-pass classification and later LLM-assisted routing.
 - `agents`: LangGraph state and controlled tools after the RAG path is validated.
 - `evals`: datasets, runners, metrics, and Markdown reports.
@@ -35,4 +36,7 @@ tickets, and later executes controlled workflows with LangGraph.
   for semantic search.
 - RAG should be implemented and evaluated before adding agentic routing.
 - External providers must stay behind small services so tests can mock them.
+- Embedding configuration is provider-based. OpenAI is the first implemented
+  provider, and local embeddings are reserved as a future provider without
+  changing document ingestion contracts.
 - Safety fallback is mandatory when there is insufficient retrieved context.
