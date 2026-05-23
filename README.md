@@ -40,6 +40,7 @@ Implemented:
 - Initial embedding provider configuration for OpenAI, future local models, or disabled mode.
 - Retrieval from Qdrant in `/chat`, grounded LLM answer generation, and source
   citations when results exist.
+- Optional `/chat` retrieval filtering by document ID.
 - Initial chat model provider configuration for OpenAI or disabled mode.
 - Character-based context budgeting before LLM generation, with logs for
   retrieved count, context count, context size, truncation, model, top-k, and latency.
@@ -53,7 +54,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Metadata-filtered retrieval and token/cost estimates.
+- Token/cost estimates.
 - LangGraph agent workflow.
 - Langfuse tracing.
 - Deployment setup.

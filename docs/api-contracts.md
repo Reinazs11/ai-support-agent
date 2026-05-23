@@ -51,9 +51,13 @@ Request:
 ```json
 {
   "question": "What is the refund policy?",
-  "top_k": 5
+  "top_k": 5,
+  "document_ids": ["document-uuid"]
 }
 ```
+
+`document_ids` is optional. When provided, retrieval is limited to chunks whose
+Qdrant payload has one of those document IDs.
 
 Response includes `answer`, `sources`, `confidence`, and `retrieval_status`.
 Current retrieval statuses include:
