@@ -5,6 +5,7 @@ from app.rag.chat_models import (
     INSUFFICIENT_CONTEXT_ANSWER,
     ChatModelProviderError,
     ChatModelResult,
+    ChatTokenUsage,
 )
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
@@ -60,10 +61,12 @@ class FakeChatModelService:
         answer: str = "Refunds are available within 30 days.",
         should_fail: bool = False,
         unexpected_exception: Exception | None = None,
+        usage: ChatTokenUsage | None = None,
     ) -> None:
         self.answer = answer
         self.should_fail = should_fail
         self.unexpected_exception = unexpected_exception
+        self.usage = usage
         self.requests: list[tuple[str, list[RetrievedChunk]]] = []
 
     async def generate_answer(
@@ -76,7 +79,7 @@ class FakeChatModelService:
             raise ChatModelProviderError("fake provider failed")
         if self.unexpected_exception is not None:
             raise self.unexpected_exception
-        return ChatModelResult(answer=self.answer, model=self.model)
+        return ChatModelResult(answer=self.answer, model=self.model, usage=self.usage)
 
 
 @pytest.mark.asyncio
@@ -156,7 +159,66 @@ async def test_chat_generates_answer_from_retrieved_chunks() -> None:
     assert response.sources[0].title == "policy.txt"
     assert response.sources[0].score == 0.92
     assert response.answer == "Refunds are available within 30 days."
+    assert response.usage is None
     assert chat_model_service.requests == [("What is the refund policy?", [result])]
+
+
+@pytest.mark.asyncio
+async def test_chat_returns_token_usage_and_cost_estimate() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    service = RagService(
+        settings=Settings(
+            retrieval_top_k=5,
+            chat_prompt_cost_per_1m_tokens=0.50,
+            chat_completion_cost_per_1m_tokens=1.50,
+        ),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(
+            usage=ChatTokenUsage(prompt_tokens=1000, completion_tokens=200, total_tokens=1200)
+        ),
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "generated"
+    assert response.usage is not None
+    assert response.usage.prompt_tokens == 1000
+    assert response.usage.completion_tokens == 200
+    assert response.usage.total_tokens == 1200
+    assert response.usage.estimated_cost_usd == 0.0008
+
+
+@pytest.mark.asyncio
+async def test_chat_returns_token_usage_without_cost_when_rates_are_unset() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    service = RagService(
+        settings=Settings(retrieval_top_k=5),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(
+            usage=ChatTokenUsage(prompt_tokens=1000, completion_tokens=200, total_tokens=1200)
+        ),
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.usage is not None
+    assert response.usage.estimated_cost_usd is None
 
 
 @pytest.mark.asyncio

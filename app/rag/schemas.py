@@ -14,8 +14,16 @@ class SourceCitation(BaseModel):
     score: float
 
 
+class ChatUsageEstimate(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float | None = None
+
+
 class ChatResponse(BaseModel):
     answer: str
     sources: list[SourceCitation] = Field(default_factory=list)
     confidence: str = "unknown"
     retrieval_status: str = "not_configured"
+    usage: ChatUsageEstimate | None = None

@@ -8,6 +8,7 @@ from app.rag.chat_models import (
     INSUFFICIENT_CONTEXT_ANSWER,
     ChatModelProviderError,
     ChatModelService,
+    ChatTokenUsage,
     build_chat_model_service,
 )
 from app.rag.embeddings import (
@@ -15,7 +16,7 @@ from app.rag.embeddings import (
     EmbeddingService,
     build_embedding_service,
 )
-from app.rag.schemas import ChatRequest, ChatResponse, SourceCitation
+from app.rag.schemas import ChatRequest, ChatResponse, ChatUsageEstimate, SourceCitation
 from app.rag.vector_store import QdrantVectorStore, RetrievedChunk, VectorStore
 
 logger = structlog.get_logger(__name__)
@@ -197,6 +198,7 @@ class RagService:
             )
 
         generation_latency_ms = (perf_counter() - generation_started) * 1000
+        usage_estimate = self._build_usage_estimate(model_result.usage)
         if model_result.answer == INSUFFICIENT_CONTEXT_ANSWER:
             self._log_chat_result(
                 status="insufficient_context",
@@ -209,12 +211,14 @@ class RagService:
                 context_truncated=context_truncated,
                 sources=sources,
                 model=model_result.model,
+                usage=usage_estimate,
             )
             return ChatResponse(
                 answer=model_result.answer,
                 sources=sources,
                 confidence="low",
                 retrieval_status="insufficient_context",
+                usage=usage_estimate,
             )
 
         self._log_chat_result(
@@ -228,13 +232,45 @@ class RagService:
             context_truncated=context_truncated,
             sources=sources,
             model=model_result.model,
+            usage=usage_estimate,
         )
         return ChatResponse(
             answer=model_result.answer,
             sources=sources,
             confidence="medium",
             retrieval_status="generated",
+            usage=usage_estimate,
         )
+
+    def _build_usage_estimate(self, usage: ChatTokenUsage | None) -> ChatUsageEstimate | None:
+        if usage is None:
+            return None
+
+        estimated_cost_usd = self._estimate_chat_cost_usd(
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+        )
+        return ChatUsageEstimate(
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+            total_tokens=usage.total_tokens,
+            estimated_cost_usd=estimated_cost_usd,
+        )
+
+    def _estimate_chat_cost_usd(
+        self,
+        *,
+        prompt_tokens: int,
+        completion_tokens: int,
+    ) -> float | None:
+        prompt_rate = self.settings.chat_prompt_cost_per_1m_tokens
+        completion_rate = self.settings.chat_completion_cost_per_1m_tokens
+        if prompt_rate == 0 and completion_rate == 0:
+            return None
+
+        prompt_cost = (prompt_tokens / 1_000_000) * prompt_rate
+        completion_cost = (completion_tokens / 1_000_000) * completion_rate
+        return round(prompt_cost + completion_cost, 8)
 
     def _limit_context_chunks(
         self,
@@ -285,6 +321,7 @@ class RagService:
         sources: list[SourceCitation] | None = None,
         model: str | None = None,
         error_type: str | None = None,
+        usage: ChatUsageEstimate | None = None,
     ) -> None:
         logger.info(
             "rag_chat_completed",
@@ -302,6 +339,10 @@ class RagService:
             context_max_chars=self.settings.rag_context_max_chars,
             context_truncated=context_truncated,
             error_type=error_type,
+            prompt_tokens=usage.prompt_tokens if usage is not None else None,
+            completion_tokens=usage.completion_tokens if usage is not None else None,
+            total_tokens=usage.total_tokens if usage is not None else None,
+            estimated_cost_usd=usage.estimated_cost_usd if usage is not None else None,
             sources=[
                 {
                     "document_id": source.document_id,
