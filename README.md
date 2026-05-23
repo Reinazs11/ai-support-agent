@@ -26,7 +26,8 @@ quality, and honest documentation about what is complete and what is still plann
 ## Current Status
 
 Phase 1, the project foundation, is in place. Phase 2 persistence is merged,
-and Phase 3 ingestion, indexing, and retrieval are in progress.
+Phase 3 ingestion, indexing, and retrieval are implemented, and Phase 4 RAG
+answer generation has started.
 
 Implemented:
 
@@ -37,7 +38,9 @@ Implemented:
 - Document upload metadata persistence and document chunk persistence.
 - Embedding and Qdrant indexing path when an embedding provider is configured.
 - Initial embedding provider configuration for OpenAI, future local models, or disabled mode.
-- Retrieval from Qdrant in `/chat`, returning source citations when results exist.
+- Retrieval from Qdrant in `/chat`, grounded LLM answer generation, and source
+  citations when results exist.
+- Initial chat model provider configuration for OpenAI or disabled mode.
 - Placeholder endpoint for evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
@@ -48,7 +51,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Real RAG answer generation after retrieval.
+- Metadata-filtered retrieval, context budgeting, and token/cost estimates.
 - LangGraph agent workflow.
 - Langfuse tracing.
 - Deployment setup.
@@ -100,6 +103,18 @@ EMBEDDING_MODEL=text-embedding-3-small
 empty. For future local embeddings, use `EMBEDDING_PROVIDER=local`; the provider
 is reserved but not implemented yet, so ingestion will store chunks and skip
 vector indexing until a local embedding service is added.
+
+Configure answer generation in `.env`:
+
+```powershell
+CHAT_PROVIDER=openai
+CHAT_API_KEY=your_key_here
+CHAT_MODEL=gpt-4.1-mini
+```
+
+`OPENAI_API_KEY` is also accepted for chat when `CHAT_API_KEY` is empty. Use
+`CHAT_PROVIDER=disabled` when you want retrieval and citations without calling
+an LLM.
 
 Start local infrastructure:
 

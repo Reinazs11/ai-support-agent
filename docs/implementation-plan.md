@@ -41,6 +41,13 @@ source citations. LLM answer generation is still pending.
 - Add fallback when context is insufficient.
 - Log retrieved documents, scores, latency, model, and token/cost estimates.
 
+Status: started. `/chat` now retrieves top-k chunks, prompts a configurable chat
+model with only those retrieved chunks, returns the generated answer plus source
+citations, and falls back explicitly when no retrieved context is available.
+Initial logging records top-k, model, source IDs/scores, and retrieval/generation
+latency. Metadata filtering, context budgeting, token/cost estimates, and deeper
+provider retry behavior remain in the next hardening increment.
+
 ## Phase 5: Evaluation
 
 - Create an initial dataset of 30 questions.

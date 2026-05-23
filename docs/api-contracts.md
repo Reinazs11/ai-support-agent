@@ -61,10 +61,17 @@ Current retrieval statuses include:
 - `not_configured`: embedding provider or vector store is unavailable.
 - `embedding_unavailable`: the question could not be embedded.
 - `no_results`: Qdrant returned no relevant chunks.
-- `retrieved`: Qdrant returned one or more source chunks.
+- `insufficient_context`: chunks were retrieved, but the model determined that
+  they do not contain enough information.
+- `generation_not_configured`: Qdrant returned chunks, but no chat model
+  provider is configured.
+- `generation_failed`: Qdrant returned chunks, but the configured chat model
+  provider failed.
+- `generated`: Qdrant returned chunks and the chat model generated an answer.
 
-Until LLM generation is implemented, `answer` explains retrieval status instead
-of composing a final grounded response.
+Generated answers are prompted only with the chunks returned by retrieval. When
+no chunks are available, the answer uses the explicit fallback:
+`Nao encontrei informacao suficiente para responder com seguranca.`
 
 ## POST /tickets/classify
 
