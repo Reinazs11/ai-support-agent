@@ -16,6 +16,7 @@ class EvalCase:
     question: str
     expected_status: str | None
     expected_answer_contains: list[str]
+    expected_answer_contains_any: list[list[str]]
     expected_source_titles: list[str]
     document_ids: list[str]
     top_k: int
@@ -57,9 +58,14 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
     status_passed = case.expected_status is None or response.get("retrieval_status") == (
         case.expected_status
     )
-    answer_passed = all(
+    required_terms_passed = all(
         expected.lower() in answer_lower for expected in case.expected_answer_contains
     )
+    variant_groups_passed = all(
+        any(variant.lower() in answer_lower for variant in variant_group)
+        for variant_group in case.expected_answer_contains_any
+    )
+    answer_passed = required_terms_passed and variant_groups_passed
     source_passed = all(title in source_titles for title in case.expected_source_titles)
 
     return EvalResult(
@@ -122,31 +128,31 @@ def run_eval(
     max_total_cost_usd: float,
 ) -> tuple[dict[str, float | int], Path, Path]:
     cases = load_dataset(dataset_path, max_questions=max_questions)
-    client = httpx.Client(base_url=base_url, timeout=60)
     results = []
     total_cost = 0.0
 
-    for case in cases:
-        document_ids = [document_id] if document_id else case.document_ids
-        started = perf_counter()
-        response = client.post(
-            "/chat",
-            json={
-                "question": case.question,
-                "top_k": case.top_k,
-                "document_ids": document_ids,
-            },
-        )
-        latency_ms = (perf_counter() - started) * 1000
-        response.raise_for_status()
-        result = evaluate_response(case=case, response=response.json(), latency_ms=latency_ms)
-        results.append(result)
-        total_cost += result.estimated_cost_usd or 0
-        if total_cost > max_total_cost_usd:
-            raise RuntimeError(
-                f"Evaluation cost estimate ${total_cost:.8f} exceeded limit "
-                f"${max_total_cost_usd:.8f}."
+    with httpx.Client(base_url=base_url, timeout=60) as client:
+        for case in cases:
+            document_ids = [document_id] if document_id else case.document_ids
+            started = perf_counter()
+            response = client.post(
+                "/chat",
+                json={
+                    "question": case.question,
+                    "top_k": case.top_k,
+                    "document_ids": document_ids,
+                },
             )
+            latency_ms = (perf_counter() - started) * 1000
+            response.raise_for_status()
+            result = evaluate_response(case=case, response=response.json(), latency_ms=latency_ms)
+            results.append(result)
+            total_cost += result.estimated_cost_usd or 0
+            if total_cost > max_total_cost_usd:
+                raise RuntimeError(
+                    f"Evaluation cost estimate ${total_cost:.8f} exceeded limit "
+                    f"${max_total_cost_usd:.8f}."
+                )
 
     json_path, md_path = write_reports(results=results, report_dir=report_dir)
     return build_summary(results), json_path, md_path
@@ -163,14 +169,27 @@ def main() -> int:
     parser.add_argument("--no-fail-on-regression", action="store_true")
     args = parser.parse_args()
 
-    summary, json_path, md_path = run_eval(
-        base_url=args.base_url,
-        dataset_path=Path(args.dataset_path),
-        report_dir=Path(args.report_dir),
-        max_questions=args.max_questions,
-        document_id=args.document_id,
-        max_total_cost_usd=args.max_total_cost_usd,
-    )
+    try:
+        summary, json_path, md_path = run_eval(
+            base_url=args.base_url,
+            dataset_path=Path(args.dataset_path),
+            report_dir=Path(args.report_dir),
+            max_questions=args.max_questions,
+            document_id=args.document_id,
+            max_total_cost_usd=args.max_total_cost_usd,
+        )
+    except httpx.ConnectError:
+        print(f"Could not connect to API at {args.base_url}. Start the local API and retry.")
+        return 1
+    except httpx.HTTPStatusError as exc:
+        print(f"Evaluation request failed with HTTP {exc.response.status_code}.")
+        return 1
+    except httpx.RequestError as exc:
+        print(f"Evaluation request failed: {exc.__class__.__name__}.")
+        return 1
+    except RuntimeError as exc:
+        print(str(exc))
+        return 1
 
     print("RAG evaluation complete.")
     print(json.dumps(summary, indent=2))
@@ -189,6 +208,7 @@ def _case_from_payload(payload: dict[str, Any], line_number: int) -> EvalCase:
             question=str(payload["question"]),
             expected_status=payload.get("expected_status"),
             expected_answer_contains=list(payload.get("expected_answer_contains", [])),
+            expected_answer_contains_any=list(payload.get("expected_answer_contains_any", [])),
             expected_source_titles=list(payload.get("expected_source_titles", [])),
             document_ids=list(payload.get("document_ids", [])),
             top_k=int(payload.get("top_k", 1)),

@@ -25,6 +25,7 @@ def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
     assert len(cases) == 1
     assert cases[0].id == "case-1"
     assert cases[0].expected_answer_contains == ["30 days"]
+    assert cases[0].expected_answer_contains_any == []
     assert cases[0].expected_source_titles == ["policy.txt"]
 
 
@@ -48,6 +49,26 @@ def test_evaluate_response_checks_status_answer_and_source() -> None:
 
     assert result.passed is True
     assert result.estimated_cost_usd == 0.0001
+
+
+def test_evaluate_response_accepts_answer_variant_groups() -> None:
+    case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[["30 days", "30 dias"]],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "A janela de reembolso e de 30 dias.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    assert result.passed is True
 
 
 def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
@@ -86,13 +107,17 @@ def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
 def load_dataset_case(
     expected_status: str = "generated",
     expected_answer_contains: list[str] | None = None,
+    expected_answer_contains_any: list[list[str]] | None = None,
     expected_source_titles: list[str] | None = None,
 ):
     dataset = {
         "id": "case-1",
         "question": "What is the refund window?",
         "expected_status": expected_status,
-        "expected_answer_contains": expected_answer_contains or ["30 days"],
+        "expected_answer_contains": (
+            ["30 days"] if expected_answer_contains is None else expected_answer_contains
+        ),
+        "expected_answer_contains_any": expected_answer_contains_any or [],
         "expected_source_titles": expected_source_titles or ["policy.txt"],
     }
     from scripts.run_eval import _case_from_payload

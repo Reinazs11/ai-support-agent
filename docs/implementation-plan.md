@@ -60,9 +60,10 @@ deeper provider retry behavior remain pending.
 
 Status: started. A small JSONL dataset and deterministic CLI runner are in place
 for the smoke-test document. The runner calls the real `/chat` endpoint, checks
-expected answer substrings, retrieval status, source titles, latency, and cost,
-then writes JSON and Markdown reports. Expanding the dataset to 30 questions and
-adding richer answer-quality evaluation remain pending.
+expected answer substrings or accepted variants, retrieval status, source
+titles, latency, and cost, then writes JSON and Markdown reports. Expanding the
+dataset to 30 questions and adding richer answer-quality evaluation remain
+pending.
 
 ## Phase 6: Agent And Workflows
 

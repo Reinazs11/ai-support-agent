@@ -14,6 +14,11 @@ Each row should include:
 - whether fallback is expected;
 - notes about ambiguity or policy constraints.
 
+For deterministic answer checks, use `expected_answer_contains` when a fact must
+appear exactly as written. Use `expected_answer_contains_any` for equivalent
+variants, for example English and Portuguese wording of the same fact. Each
+variant group passes when at least one value in that group appears in the answer.
+
 ## Metrics
 
 - Expected information present in answer.
@@ -38,4 +43,6 @@ python -m scripts.run_eval --document-id <document_id_from_smoke_test> --max-tot
 ```
 
 The runner calls the real `/chat` endpoint, writes JSON and Markdown reports to
-`reports/evals/`, and fails by default when deterministic checks do not pass.
+`reports/evals/`, and fails by default when deterministic checks do not pass. If
+the API is not running, it exits with a short connection message instead of a
+stack trace.
