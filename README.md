@@ -149,6 +149,19 @@ Check the health endpoint:
 Invoke-RestMethod http://localhost:8000/health
 ```
 
+Check OpenAI configuration without printing secrets:
+
+```powershell
+python -m scripts.check_openai_auth
+```
+
+After adding a valid API key, optionally verify API access without sending
+prompts or documents:
+
+```powershell
+python -m scripts.check_openai_auth --live
+```
+
 ## Validation
 
 Run the main checks before committing:
