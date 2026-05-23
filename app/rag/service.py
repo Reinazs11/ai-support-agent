@@ -154,7 +154,7 @@ class RagService:
                 question=request.question,
                 chunks=context_chunks,
             )
-        except ChatModelProviderError:
+        except ChatModelProviderError as exc:
             generation_latency_ms = (perf_counter() - generation_started) * 1000
             self._log_chat_result(
                 status="generation_failed",
@@ -166,6 +166,27 @@ class RagService:
                 context_chars=context_chars,
                 context_truncated=context_truncated,
                 sources=sources,
+                error_type=type(exc).__name__,
+            )
+            return ChatResponse(
+                answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
+                sources=sources,
+                confidence="low",
+                retrieval_status="generation_failed",
+            )
+        except Exception as exc:
+            generation_latency_ms = (perf_counter() - generation_started) * 1000
+            self._log_chat_result(
+                status="generation_failed",
+                top_k=top_k,
+                retrieval_latency_ms=retrieval_latency_ms,
+                generation_latency_ms=generation_latency_ms,
+                retrieved_count=len(retrieved_chunks),
+                context_source_count=len(sources),
+                context_chars=context_chars,
+                context_truncated=context_truncated,
+                sources=sources,
+                error_type=type(exc).__name__,
             )
             return ChatResponse(
                 answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
@@ -262,6 +283,7 @@ class RagService:
         context_truncated: bool,
         sources: list[SourceCitation] | None = None,
         model: str | None = None,
+        error_type: str | None = None,
     ) -> None:
         logger.info(
             "rag_chat_completed",
@@ -278,6 +300,7 @@ class RagService:
             context_chars=context_chars,
             context_max_chars=self.settings.rag_context_max_chars,
             context_truncated=context_truncated,
+            error_type=error_type,
             sources=[
                 {
                     "document_id": source.document_id,

@@ -56,9 +56,11 @@ class FakeChatModelService:
         self,
         answer: str = "Refunds are available within 30 days.",
         should_fail: bool = False,
+        unexpected_exception: Exception | None = None,
     ) -> None:
         self.answer = answer
         self.should_fail = should_fail
+        self.unexpected_exception = unexpected_exception
         self.requests: list[tuple[str, list[RetrievedChunk]]] = []
 
     async def generate_answer(
@@ -69,6 +71,8 @@ class FakeChatModelService:
         self.requests.append((question, chunks))
         if self.should_fail:
             raise ChatModelProviderError("fake provider failed")
+        if self.unexpected_exception is not None:
+            raise self.unexpected_exception
         return ChatModelResult(answer=self.answer, model=self.model)
 
 
@@ -232,6 +236,31 @@ async def test_chat_reports_generation_failure_from_provider() -> None:
         embedding_service=FakeEmbeddingService(),
         vector_store=FakeVectorStore(results=[result]),
         chat_model_service=FakeChatModelService(should_fail=True),
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "generation_failed"
+    assert response.confidence == "low"
+    assert response.sources[0].chunk_id == "chunk-1"
+    assert "provedor de LLM" in response.answer
+
+
+@pytest.mark.asyncio
+async def test_chat_reports_unexpected_generation_failure_from_provider() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    service = RagService(
+        settings=Settings(retrieval_top_k=5),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(unexpected_exception=RuntimeError("boom")),
     )
 
     response = await service.answer(ChatRequest(question="What is the refund policy?"))
