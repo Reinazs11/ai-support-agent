@@ -207,7 +207,11 @@ async def test_chat_returns_token_usage_without_cost_when_rates_are_unset() -> N
         score=0.92,
     )
     service = RagService(
-        settings=Settings(retrieval_top_k=5),
+        settings=Settings(
+            retrieval_top_k=5,
+            chat_prompt_cost_per_1m_tokens=0,
+            chat_completion_cost_per_1m_tokens=0,
+        ),
         embedding_service=FakeEmbeddingService(),
         vector_store=FakeVectorStore(results=[result]),
         chat_model_service=FakeChatModelService(
