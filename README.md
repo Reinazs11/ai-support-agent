@@ -44,6 +44,7 @@ Implemented:
 - Initial chat model provider configuration for OpenAI or disabled mode.
 - Character-based context budgeting before LLM generation, with logs for
   retrieved count, context count, context size, truncation, model, top-k, and latency.
+- Token usage and configurable cost estimates for generated chat responses.
 - Placeholder endpoint for evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
@@ -54,9 +55,8 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Token/cost estimates.
+- Langfuse tracing and richer observability dashboards.
 - LangGraph agent workflow.
-- Langfuse tracing.
 - Deployment setup.
 
 ## Tech Stack
@@ -113,11 +113,15 @@ Configure answer generation in `.env`:
 CHAT_PROVIDER=openai
 CHAT_API_KEY=your_key_here
 CHAT_MODEL=gpt-4.1-mini
+CHAT_PROMPT_COST_PER_1M_TOKENS=0
+CHAT_COMPLETION_COST_PER_1M_TOKENS=0
 ```
 
 `OPENAI_API_KEY` is also accepted for chat when `CHAT_API_KEY` is empty. Use
 `CHAT_PROVIDER=disabled` when you want retrieval and citations without calling
-an LLM.
+an LLM. Cost estimate rates are intentionally configurable because provider
+pricing changes over time; leave both rates at `0` to return token counts without
+an estimated dollar cost.
 
 The RAG prompt context is capped before generation:
 
@@ -125,8 +129,7 @@ The RAG prompt context is capped before generation:
 RAG_CONTEXT_MAX_CHARS=6000
 ```
 
-The current limit is character-based, not token-based. Token and cost estimates
-remain planned for a later observability increment.
+The current limit is character-based, not token-based.
 
 Start local infrastructure:
 
