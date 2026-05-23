@@ -162,6 +162,19 @@ prompts or documents:
 python -m scripts.check_openai_auth --live
 ```
 
+Run the lowest-cost live RAG smoke test against the local API:
+
+```powershell
+docker compose up -d postgres qdrant
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+python -m scripts.smoke_live_rag --max-cost-usd 0.005
+```
+
+The smoke test uploads a tiny `.txt` document, indexes one small embedding batch,
+asks one short question with `top_k=1`, and fails if the returned cost estimate
+exceeds the configured limit.
+
 ## Validation
 
 Run the main checks before committing:
