@@ -21,9 +21,17 @@ class ChatModelProviderError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class ChatTokenUsage:
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+@dataclass(frozen=True)
 class ChatModelResult:
     answer: str
     model: str
+    usage: ChatTokenUsage | None = None
 
 
 class ChatModelService(Protocol):
@@ -66,7 +74,15 @@ class OpenAIChatModelService:
         if not content:
             raise ChatModelProviderError("OpenAI returned an empty chat response.")
 
-        return ChatModelResult(answer=content.strip(), model=self.model)
+        usage = None
+        if response.usage is not None:
+            usage = ChatTokenUsage(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+
+        return ChatModelResult(answer=content.strip(), model=self.model, usage=usage)
 
 
 def build_grounded_messages(

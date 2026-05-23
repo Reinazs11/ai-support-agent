@@ -59,7 +59,25 @@ Request:
 `document_ids` is optional. When provided, retrieval is limited to chunks whose
 Qdrant payload has one of those document IDs.
 
-Response includes `answer`, `sources`, `confidence`, and `retrieval_status`.
+Response includes `answer`, `sources`, `confidence`, `retrieval_status`, and
+`usage`.
+
+Example usage payload:
+
+```json
+{
+  "prompt_tokens": 1000,
+  "completion_tokens": 200,
+  "total_tokens": 1200,
+  "estimated_cost_usd": 0.0008
+}
+```
+
+`usage` is `null` when the chat model provider does not return token usage, or
+when generation is not called. `estimated_cost_usd` is `null` unless
+`CHAT_PROMPT_COST_PER_1M_TOKENS` or `CHAT_COMPLETION_COST_PER_1M_TOKENS` is
+configured.
+
 Current retrieval statuses include:
 
 - `not_configured`: embedding provider or vector store is unavailable.

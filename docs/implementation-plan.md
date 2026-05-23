@@ -47,8 +47,10 @@ citations, and falls back explicitly when no retrieved context is available.
 Initial logging records top-k, model, source IDs/scores, and retrieval/generation
 latency. Hardening increments added document ID filtering, a character-based
 context limit before generation, context truncation logging, and controlled
-handling for unexpected chat-provider errors. Token/cost estimates, richer
-metadata filters, and deeper provider retry behavior remain pending.
+handling for unexpected chat-provider errors. Chat responses now include token
+usage when the provider returns it, and cost estimates when per-1M-token rates
+are configured. Richer metadata filters, token-aware preflight budgeting, and
+deeper provider retry behavior remain pending.
 
 ## Phase 5: Evaluation
 

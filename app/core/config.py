@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     chat_provider: Literal["openai", "disabled"] = "openai"
     chat_api_key: str = ""
     chat_model: str = ""
+    chat_prompt_cost_per_1m_tokens: float = Field(default=0.0, ge=0)
+    chat_completion_cost_per_1m_tokens: float = Field(default=0.0, ge=0)
 
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4.1-mini"
