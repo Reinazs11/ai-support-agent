@@ -31,6 +31,8 @@ chunks are persisted in PostgreSQL, and ingestion can generate embeddings and
 index chunks in Qdrant when an embedding provider is configured. The first
 provider is OpenAI, but settings now use a generic embedding provider layer so a
 local provider can replace it later without changing the ingestion contract.
+`/chat` can embed a question, retrieve top-k chunks from Qdrant, and return
+source citations. LLM answer generation is still pending.
 
 ## Phase 4: RAG
 
