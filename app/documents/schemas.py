@@ -14,4 +14,5 @@ class DocumentIngestResponse(BaseModel):
     document_id: str
     status: str
     chunks_indexed: int = 0
+    vectors_indexed: int = 0
     warnings: list[str] = Field(default_factory=list)

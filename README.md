@@ -35,6 +35,7 @@ Implemented:
 - Structured logging setup.
 - Initial HTTP contracts.
 - Document upload metadata persistence and document chunk persistence.
+- Embedding and Qdrant indexing path when `OPENAI_API_KEY` is configured.
 - Placeholder endpoints for chat and evaluation.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
@@ -45,8 +46,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- OpenAI embeddings.
-- Qdrant indexing and retrieval.
+- Retrieval from Qdrant in `/chat`.
 - Real RAG answer generation.
 - LangGraph agent workflow.
 - Langfuse tracing.

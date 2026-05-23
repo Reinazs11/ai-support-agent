@@ -10,6 +10,8 @@ from app.db.models import Document, DocumentChunk
 from app.documents.chunking import chunk_text
 from app.documents.parsers import SUPPORTED_EXTENSIONS, parse_document
 from app.documents.schemas import DocumentIngestResponse, DocumentUploadResponse
+from app.rag.embeddings import EmbeddingConfigurationError, EmbeddingService, OpenAIEmbeddingService
+from app.rag.vector_store import ChunkVectorRecord, QdrantVectorStore, VectorStore
 
 
 class DocumentNotFoundError(ValueError):
@@ -32,6 +34,10 @@ class DocumentService:
         chunk_size: int | None = None,
         chunk_overlap: int | None = None,
         max_upload_mb: int | None = None,
+        embedding_service: EmbeddingService | None = None,
+        vector_store: VectorStore | None = None,
+        qdrant_collection: str | None = None,
+        qdrant_vector_size: int | None = None,
     ) -> None:
         settings = get_settings()
         self.session = session
@@ -39,6 +45,18 @@ class DocumentService:
         self.chunk_size = chunk_size or settings.chunk_size
         self.chunk_overlap = chunk_overlap if chunk_overlap is not None else settings.chunk_overlap
         self.max_upload_bytes = (max_upload_mb or settings.max_upload_mb) * 1024 * 1024
+        self.qdrant_collection = qdrant_collection or settings.qdrant_collection
+        self.qdrant_vector_size = qdrant_vector_size or settings.qdrant_vector_size
+        self.embedding_service = embedding_service
+        self.vector_store = vector_store
+
+        if self.embedding_service is None and settings.openai_api_key:
+            self.embedding_service = OpenAIEmbeddingService(
+                api_key=settings.openai_api_key,
+                model=settings.openai_embedding_model,
+            )
+        if self.vector_store is None and self.embedding_service is not None:
+            self.vector_store = QdrantVectorStore(url=settings.qdrant_url)
 
     async def register_upload(self, file: UploadFile) -> DocumentUploadResponse:
         filename = Path(file.filename or "uploaded-document").name
@@ -100,21 +118,32 @@ class DocumentService:
                     id=str(uuid4()),
                     chunk_index=chunk.index,
                     text=chunk.text,
-                    qdrant_point_id=None,
+                    qdrant_point_id=str(uuid4()),
                 )
             )
 
-        document.status = "ingested"
+        vectors_indexed = 0
+        warnings = []
+        if chunks:
+            vectors_indexed = await self._index_document_chunks(document)
+            document.status = "indexed" if vectors_indexed else "ingested"
+        else:
+            document.status = "ingested"
         self.session.commit()
 
-        warnings = []
         if not chunks:
             warnings.append("Document parsed successfully but no text chunks were produced.")
+        if chunks and not vectors_indexed:
+            warnings.append(
+                "Embedding and Qdrant indexing were skipped because embedding configuration "
+                "is not available."
+            )
 
         return DocumentIngestResponse(
             document_id=document_id,
             status=document.status,
             chunks_indexed=len(chunks),
+            vectors_indexed=vectors_indexed,
             warnings=warnings,
         )
 
@@ -134,3 +163,38 @@ class DocumentService:
                 f"Uploaded document exceeds the {self.max_upload_bytes} byte limit."
             )
         return size_bytes
+
+    async def _index_document_chunks(self, document: Document) -> int:
+        if self.embedding_service is None or self.vector_store is None:
+            return 0
+
+        chunks = sorted(document.chunks, key=lambda chunk: chunk.chunk_index)
+        try:
+            vectors = await self.embedding_service.embed_texts([chunk.text for chunk in chunks])
+        except EmbeddingConfigurationError:
+            return 0
+
+        records = [
+            ChunkVectorRecord(
+                point_id=chunk.qdrant_point_id or str(uuid4()),
+                vector=vector,
+                payload={
+                    "document_id": document.id,
+                    "chunk_id": chunk.id,
+                    "chunk_index": chunk.chunk_index,
+                    "filename": document.filename,
+                    "text": chunk.text,
+                },
+            )
+            for chunk, vector in zip(chunks, vectors, strict=True)
+        ]
+        self.vector_store.delete_document_vectors(
+            collection_name=self.qdrant_collection,
+            document_id=document.id,
+        )
+        self.vector_store.index_chunks(
+            collection_name=self.qdrant_collection,
+            vector_size=self.qdrant_vector_size,
+            records=records,
+        )
+        return len(records)

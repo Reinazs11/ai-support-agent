@@ -36,6 +36,7 @@ Response:
   "document_id": "uuid",
   "status": "ingested",
   "chunks_indexed": 3,
+  "vectors_indexed": 0,
   "warnings": []
 }
 ```
