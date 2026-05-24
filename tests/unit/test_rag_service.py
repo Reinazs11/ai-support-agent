@@ -306,7 +306,7 @@ async def test_chat_reports_generation_not_configured_after_retrieval() -> None:
     assert response.retrieval_status == "generation_not_configured"
     assert response.confidence == "low"
     assert response.sources[0].chunk_id == "chunk-1"
-    assert "LLM ainda nao esta configurada" in response.answer
+    assert "LLM answer generation is not configured yet" in response.answer
 
 
 @pytest.mark.asyncio
@@ -331,7 +331,7 @@ async def test_chat_reports_generation_failure_from_provider() -> None:
     assert response.retrieval_status == "generation_failed"
     assert response.confidence == "low"
     assert response.sources[0].chunk_id == "chunk-1"
-    assert "provedor de LLM" in response.answer
+    assert "configured LLM provider" in response.answer
 
 
 @pytest.mark.asyncio
@@ -356,7 +356,7 @@ async def test_chat_reports_unexpected_generation_failure_from_provider() -> Non
     assert response.retrieval_status == "generation_failed"
     assert response.confidence == "low"
     assert response.sources[0].chunk_id == "chunk-1"
-    assert "provedor de LLM" in response.answer
+    assert "configured LLM provider" in response.answer
 
 
 @pytest.mark.asyncio

@@ -82,13 +82,13 @@ def test_evaluate_response_checks_status_answer_and_source() -> None:
 def test_evaluate_response_accepts_answer_variant_groups() -> None:
     case = load_dataset_case(
         expected_answer_contains=[],
-        expected_answer_contains_any=[["30 days", "30 dias"]],
+        expected_answer_contains_any=[["30 days", "thirty days"]],
     )
 
     result = evaluate_response(
         case=case,
         response={
-            "answer": "A janela de reembolso e de 30 dias.",
+            "answer": "The refund window is thirty days.",
             "retrieval_status": "generated",
             "sources": [{"title": "policy.txt"}],
             "usage": {"estimated_cost_usd": 0.0001},

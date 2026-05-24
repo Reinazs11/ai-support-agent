@@ -9,7 +9,7 @@ from app.rag.vector_store import RetrievedChunk
 if TYPE_CHECKING:
     from app.core.config import Settings
 
-INSUFFICIENT_CONTEXT_ANSWER = "Nao encontrei informacao suficiente para responder com seguranca."
+INSUFFICIENT_CONTEXT_ANSWER = "I do not have enough information to answer safely."
 
 
 class ChatModelConfigurationError(ValueError):
@@ -106,8 +106,9 @@ def build_grounded_messages(
                 "role": "system",
                 "content": (
                     "You are a support knowledge assistant. Answer only from the retrieved "
-                    "source chunks in the user message. If the chunks do not contain enough "
-                    f"information, answer exactly: {INSUFFICIENT_CONTEXT_ANSWER}"
+                    "source chunks in the user message. Always answer in English. If the "
+                    "chunks do not contain enough information, answer exactly: "
+                    f"{INSUFFICIENT_CONTEXT_ANSWER}"
                 ),
             },
         ),

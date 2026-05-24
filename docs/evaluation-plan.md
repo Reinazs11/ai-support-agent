@@ -27,8 +27,10 @@ Each row should include:
 
 For deterministic answer checks, use `expected_answer_contains` when a fact must
 appear exactly as written. Use `expected_answer_contains_any` for equivalent
-variants, for example English and Portuguese wording of the same fact. Each
-variant group passes when at least one value in that group appears in the answer.
+English variants of the same fact. Each variant group passes when at least one
+value in that group appears in the answer. RAG answers and deterministic eval
+expectations are English-only so failures point to answer quality instead of
+language drift.
 
 ## Metrics
 
