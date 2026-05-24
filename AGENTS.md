@@ -166,6 +166,9 @@ For new functionality, test both success and failure cases when practical.
 
 If a test requires an external service, make that requirement explicit.
 
+Do not run live evaluations that call external providers, such as embedding or
+LLM APIs, unless the user explicitly asks for that specific live evaluation run.
+
 ---
 
 ## Documentation Rules
