@@ -123,6 +123,58 @@ def test_evaluate_response_normalizes_answer_text_before_matching() -> None:
     assert result.passed is True
 
 
+def test_evaluate_response_checks_fallback_quality() -> None:
+    case = load_dataset_case(
+        expected_status="insufficient_context",
+        expected_answer_contains=[],
+        expected_answer_contains_any=[],
+        expected_source_titles=[],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "There is not enough context to answer.",
+            "retrieval_status": "insufficient_context",
+            "sources": [],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    assert result.passed is False
+    assert result.quality_passed is False
+    assert result.quality_score == 0.75
+    assert result.failure_reasons == ["quality"]
+    assert result.quality_failure_reasons == ["fallback_behavior"]
+
+
+def test_evaluate_response_checks_forbidden_terms_and_answer_length() -> None:
+    case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[["30 days"]],
+        forbidden_answer_contains=["guaranteed"],
+        max_answer_chars=40,
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "Refunds are guaranteed and available within 30 days.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    assert result.passed is False
+    assert result.answer_passed is True
+    assert result.quality_passed is False
+    assert result.quality_score == 0.5
+    assert result.quality_failure_reasons == ["forbidden_terms", "answer_length"]
+
+
 def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     case = load_dataset_case()
     passing_result = evaluate_response(
@@ -152,6 +204,8 @@ def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     assert summary["passed"] == 1
     assert summary["failed"] == 1
     assert summary["pass_rate"] == 0.5
+    assert summary["quality_passed"] == 2
+    assert summary["average_quality_score"] == 1
     assert summary["average_latency_ms"] == 20
     assert summary["estimated_cost_usd"] == 0.0003
 
@@ -180,9 +234,13 @@ def test_failed_result_records_expected_actual_and_reasons() -> None:
     assert result.failure_reasons == ["retrieval_status", "answer", "sources"]
     assert payload["expected"]["retrieval_status"] == "generated"
     assert payload["expected"]["answer_contains"] == ["30 days"]
+    assert payload["expected"]["forbidden_answer_contains"] == []
+    assert payload["expected"]["max_answer_chars"] is None
     assert payload["actual"]["retrieval_status"] == "no_results"
     assert payload["actual"]["answer"] == "No answer."
     assert payload["actual"]["source_titles"] == ["other.txt"]
+    assert payload["quality_passed"] is True
+    assert payload["quality_score"] == 1
 
 
 def test_markdown_report_includes_failure_details() -> None:
@@ -258,6 +316,8 @@ def load_dataset_case(
     expected_status: str = "generated",
     expected_answer_contains: list[str] | None = None,
     expected_answer_contains_any: list[list[str]] | None = None,
+    forbidden_answer_contains: list[str] | None = None,
+    max_answer_chars: int | None = None,
     expected_source_titles: list[str] | None = None,
 ):
     dataset = {
@@ -268,7 +328,11 @@ def load_dataset_case(
             ["30 days"] if expected_answer_contains is None else expected_answer_contains
         ),
         "expected_answer_contains_any": expected_answer_contains_any or [],
-        "expected_source_titles": expected_source_titles or ["policy.txt"],
+        "forbidden_answer_contains": forbidden_answer_contains or [],
+        "max_answer_chars": max_answer_chars,
+        "expected_source_titles": (
+            ["policy.txt"] if expected_source_titles is None else expected_source_titles
+        ),
     }
     from scripts.run_eval import _case_from_payload
 

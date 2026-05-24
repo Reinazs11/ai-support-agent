@@ -4,8 +4,8 @@
 
 The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 30
 deterministic checks against the synthetic and FTC public-source files in
-`evals/corpus/` so the runner can be validated cheaply before adding richer
-answer-quality evaluation.
+`evals/corpus/` so the runner can be validated cheaply before adding optional
+LLM-as-judge or Ragas-style evaluation later.
 
 The corpus also includes FTC public-source snapshots generated from
 `evals/external_corpus_sources.json`. Refresh them with:
@@ -23,6 +23,8 @@ Each row should include:
 - expected answer facts;
 - expected source document or chunk;
 - whether fallback is expected;
+- optional forbidden answer terms;
+- optional answer length limits;
 - notes about ambiguity or policy constraints.
 
 For deterministic answer checks, use `expected_answer_contains` when a fact must
@@ -33,12 +35,18 @@ expectations are English-only so failures point to answer quality instead of
 language drift. The runner normalizes deterministic answer matching for case,
 diacritics, punctuation, apostrophes, hyphens, and repeated whitespace before
 checking substrings, while reports still preserve the original generated answer.
+In addition to exact facts and sources, each case receives a deterministic
+answer-quality check. The quality check verifies that answers are present,
+fallback responses use the canonical fallback when expected, generated answers
+do not use the fallback, optional forbidden terms are absent, and optional
+answer length limits are respected.
 
 ## Metrics
 
 - Expected information present in answer.
 - Correct source retrieved.
 - Fallback when context is insufficient.
+- Deterministic answer quality score.
 - Average latency.
 - Average cost.
 - Error rate.
@@ -49,7 +57,7 @@ checking substrings, while reports still preserve the original generated answer.
 2. Save generated answers and sources.
 3. Produce a Markdown report.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
-5. Add Ragas only after the basic dataset is stable.
+5. Add LLM-as-judge or Ragas only after deterministic regressions are stable.
 
 Current runner:
 
@@ -65,4 +73,4 @@ source documents, writes JSON and Markdown reports to `reports/evals/`, and
 fails by default when deterministic checks do not pass. If the API is not
 running, it exits with a short connection message instead of a stack trace.
 Failed cases include failure reasons plus expected and actual status, answer
-checks, and source titles in the generated reports.
+checks, quality checks, and source titles in the generated reports.
