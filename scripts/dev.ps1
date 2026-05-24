@@ -10,6 +10,7 @@ param(
         "auth",
         "auth-live",
         "smoke",
+        "download-corpus",
         "seed-eval",
         "eval"
     )]
@@ -57,6 +58,7 @@ function Show-Help {
     Write-Host "  auth       Check OpenAI configuration without an API call"
     Write-Host "  auth-live  Verify OpenAI API access without prompts or documents"
     Write-Host "  smoke      Run the low-cost live RAG smoke test"
+    Write-Host "  download-corpus  Refresh public eval corpus snapshots"
     Write-Host "  seed-eval  Upload and ingest the eval corpus"
     Write-Host "  eval       Run deterministic RAG evaluation"
     Write-Host ""
@@ -105,6 +107,9 @@ switch ($Command) {
             "--max-cost-usd",
             $SmokeMaxCostUsd.ToString("G", $InvariantCulture)
         )
+    }
+    "download-corpus" {
+        Invoke-External $Python @("-m", "scripts.download_eval_corpus")
     }
     "seed-eval" {
         Invoke-External $Python @(

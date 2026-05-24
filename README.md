@@ -185,10 +185,17 @@ Run the initial deterministic RAG evaluation against the local API:
 ```
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
-synthetic corpus under `evals/corpus/`. The seed script uploads and ingests those
-documents, then writes a local manifest under `reports/evals/`, which is ignored
-by Git. The eval runner uses that manifest to filter each question to the
-expected document IDs.
+synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots
+are generated from the curated FTC URLs in `evals/external_corpus_sources.json`
+and include source/license metadata. To refresh those snapshots:
+
+```powershell
+.\scripts\dev.ps1 download-corpus
+```
+
+The seed script uploads and ingests the corpus documents, then writes a local
+manifest under `reports/evals/`, which is ignored by Git. The eval runner uses
+that manifest to filter each question to the expected document IDs.
 
 ## Validation
 
