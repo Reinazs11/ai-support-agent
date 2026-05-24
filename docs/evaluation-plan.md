@@ -6,6 +6,16 @@ The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 18
 deterministic checks against the synthetic files in `evals/corpus/` so the
 runner can be validated cheaply before expanding to 30 questions.
 
+The corpus also includes FTC public-source snapshots generated from
+`evals/external_corpus_sources.json`. Refresh them with:
+
+```powershell
+python -m scripts.download_eval_corpus
+```
+
+Downloaded corpus files must keep source URL and license metadata in the file
+header so answers can be traced back to real source material.
+
 Each row should include:
 
 - user question;
@@ -39,8 +49,8 @@ variant group passes when at least one value in that group appears in the answer
 Current runner:
 
 ```powershell
-python -m scripts.seed_eval_corpus
-python -m scripts.run_eval --document-manifest-path reports/evals/eval-corpus-manifest.json --max-total-cost-usd 0.05
+.\scripts\dev.ps1 seed-eval
+.\scripts\dev.ps1 eval
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then

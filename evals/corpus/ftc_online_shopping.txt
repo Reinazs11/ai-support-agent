@@ -1,0 +1,66 @@
+Title: ftc_online_shopping.txt
+Source: United States Federal Trade Commission
+URL: https://consumer.ftc.gov/online-shopping
+License note: Most FTC website material is public domain as work of the United States Government; attribution should be included where feasible.
+
+Online Shopping
+Before you buy something online, shop around and check out sellers and products. Also, keep records of purchases, like receipts and emails, to make sure you’re able to hold a seller to its promises.
+Learn About Sellers and Products
+Comparison Shopping
+Delivery, Return, and Refund Policies
+Pay by Credit Card When Possible
+Keep Records
+Know What Personal Information the Site or App Collects
+Report Problems
+Learn About Sellers and Products
+Read reviews with a critical eye
+Expert reviews from trusted websites are a good place to get information about what to buy and who to hire. Focus on sites you trust that offer impartial reviews from real experts.
+Read customer reviews about a company or product from a wide variety of review and retailer sites, search engines, app stores, and social media platforms. Check several sources and consider where a review is posted, who wrote the review, and the reviewer’s history. And don’t rely on star ratings alone because some reviews and ratings are fake or misleading. Fake reviews can be positive or negative. Not all fake positive reviews are five stars. Some dishonest competitors place fake negative reviews. Also, it’s not always clear if a reviewer got something, like a free product, in exchange for writing a review. Some — but not all — websites will place a label or badge next to the review when they know that the reviewer got an incentive.
+Find out other people’s experiences
+Search online for the product or company name, plus the words “complaint” or “scam.” See what other people are saying about their experience.
+Comparison Shopping
+To comparison shop for a product, make notes of the item’s manufacturer or model number, plus details like size, color, or shipping fees. Use the information to check comparison shopping sites that list retail stores and online sellers that have the item. Some sites let you sign up to get price alerts when prices change.
+Not all comparison shopping sites are the same. Sometimes manufacturers set up sites to promote their own products. Or some companies run sites that only list or rank products if sellers pay them. Focus on comparison shopping sites that are well known and trustworthy.
+How to comparison shop
+Learn the total cost of the product, including shipping, handling, delivery, taxes, or other fees.
+Read the terms of the advertised “deal.” For example, will you have to buy unwanted products to get the advertised “low price”?
+Read the entire product description, including the fine print. Words like "refurbished," "vintage," or "close-out" could mean a product is in less-than-perfect condition. If expensive brand-name items are offered for bargain prices, they could be counterfeit or stolen.
+See if a seller has a price-matching policy that guarantees it will match competitors’ prices and match its own in-store price to its online prices. Contact a seller if you want to request a match. Some sellers match or even go lower than their own online prices or a competitor’s prices.
+Find out if you’ll be able to get a credit or refund if the item you buy today goes on sale next week. What records or receipts will you need?
+Delivery, Return, and Refund Policies
+Read the seller’s information about shipping and delivery
+An FTC rule requires sellers to ship items as they promised in their ads. If a seller doesn’t promise a time, it has to ship your order within 30 days after it gets your name, address, and payment, or permission to charge your account. Many sites offer tracking options that let you see exactly where your purchase is and estimate when you’ll get it. If you pay by credit card but don’t get the item, dispute the charge.
+Check the seller’s refund policies
+The site must say whether you’re able to return the item for a full refund. Before you return an item, find out
+who pays the shipping costs for returns?
+how many days do you have to return the item?
+will you have to pay restocking fees?
+Check refund policies for sale items
+If you buy things on sale, doublecheck the return policies. Sellers often have different refund and return policies for sale items, especially clearance merchandise.
+Pay by Credit Card When Possible
+Paying by credit card best protects you and your money in case of a scam, or if something else goes wrong. Make sure the websites where you enter payment information use encryption to protect your information during your transaction. Look for https at the beginning of the URL. The ‘s’ after http means the site is encrypted — but it doesn’t mean it’s a legitimate site. Scammers know how to encrypt sites, too.
+If you pay by credit card and are charged twice for the same item, are billed for merchandise you never got, or get the wrong item or a defective item, you’ll be able to dispute the charge. In those situations, ask your credit card company to temporarily withhold payment while it investigates. To take advantage of this right, call immediately and send a letter to your credit card company that reaches the company within 60 days of the day the company mailed you the first bill showing the error.
+Never buy anything from online sellers that insist you can only pay with gift cards, by wire transfers through companies like Western Union or MoneyGram, with a payment app, or with cryptocurrency. Scammers will often ask you to pay in a way that makes it hard for you to get your money back. Find out what to do if you sent money to a scammer.
+Keep Records
+When you buy something online, be sure to keep information about
+the company name and website
+what you ordered, the date you ordered it, and what you paid
+the seller’s return policy
+the company’s promise to ship, and the date it made the promise
+all email, text, and other communication you have with the company
+your credit card or bank account statements that show how you paid
+Know What Personal Information the Site or App Collects
+Websites and shopping apps often ask for personal information like your name, mailing address, phone number, and email. They also may collect information about the things you buy, including how much you paid, along with when, where, and how you paid. They may sell the information to other companies, like data brokers, who may combine it other personal data to develop a detailed profile about you and sell it to other businesses.
+Many shopping apps rely on location data. For example, some apps collect information about your location to tell you whether an item is available at a store near you. If you don’t want the app to track your location, use your phone’s privacy settings to control whether the app collects your location.
+Before you use an app or website, also make sure you’re okay with how your information is used, shared, and protected. If you’re not, consider going to a different website or look for another app.
+To find out what personal information a website or an app collects, look at the privacy policy, User Agreement, or Terms of Service. Look for information about what the app developer will do with your data and how it will keep it secure.
+Report Problems
+If you have a problem when you shop online, try to work it out directly with the seller or site owner. If that doesn't work, tell the FTC at ReportFraud.ftc.gov.
+Search Terms
+online security
+saving money
+shopping
+Topics
+Shopping and Donating
+Shopping
+Return to top

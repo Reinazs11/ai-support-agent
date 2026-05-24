@@ -1,0 +1,28 @@
+{
+  "sources": [
+    {
+      "title": "ftc_billed_for_things_never_got.txt",
+      "agency": "United States Federal Trade Commission",
+      "url": "https://consumer.ftc.gov/what-do-if-youre-billed-things-you-never-got-or-you-get-unordered-products",
+      "license_note": "Most FTC website material is public domain as work of the United States Government; attribution should be included where feasible."
+    },
+    {
+      "title": "ftc_refund_recovery_scams.txt",
+      "agency": "United States Federal Trade Commission",
+      "url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+      "license_note": "Most FTC website material is public domain as work of the United States Government; attribution should be included where feasible."
+    },
+    {
+      "title": "ftc_online_shopping.txt",
+      "agency": "United States Federal Trade Commission",
+      "url": "https://consumer.ftc.gov/online-shopping",
+      "license_note": "Most FTC website material is public domain as work of the United States Government; attribution should be included where feasible."
+    },
+    {
+      "title": "ftc_credit_card_disputes.txt",
+      "agency": "United States Federal Trade Commission",
+      "url": "https://consumer.ftc.gov/articles/using-credit-cards-and-disputing-charges",
+      "license_note": "Most FTC website material is public domain as work of the United States Government; attribution should be included where feasible."
+    }
+  ]
+}
