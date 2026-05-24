@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from scripts.run_eval import (
     _build_markdown_report,
@@ -35,6 +36,20 @@ def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
     assert cases[0].expected_answer_contains == ["30 days"]
     assert cases[0].expected_answer_contains_any == []
     assert cases[0].expected_source_titles == ["policy.txt"]
+
+
+def test_committed_initial_dataset_is_well_formed() -> None:
+    cases = load_dataset(Path("evals/initial_rag.jsonl"))
+    case_ids = [case.id for case in cases]
+
+    assert len(cases) >= 18
+    assert len(case_ids) == len(set(case_ids))
+    for case in cases:
+        assert case.question
+        assert case.expected_status in {"generated", "insufficient_context", None}
+        assert all(group for group in case.expected_answer_contains_any)
+        if case.expected_status == "generated":
+            assert case.expected_source_titles
 
 
 def test_evaluate_response_checks_status_answer_and_source() -> None:

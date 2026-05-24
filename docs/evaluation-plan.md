@@ -2,10 +2,9 @@
 
 ## Initial Dataset
 
-The initial committed dataset is `evals/initial_rag.jsonl`. It starts with a
-small number of deterministic checks against the synthetic files in
-`evals/corpus/` so the runner can be validated cheaply before expanding to 30
-questions.
+The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 18
+deterministic checks against the synthetic files in `evals/corpus/` so the
+runner can be validated cheaply before expanding to 30 questions.
 
 Each row should include:
 

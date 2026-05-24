@@ -58,7 +58,7 @@ deeper provider retry behavior remain pending.
 - Implement `scripts/run_eval.py` against the real chat service.
 - Report answer correctness, correct source retrieval, fallback quality, cost, and latency.
 
-Status: started. A small JSONL dataset, synthetic eval corpus, corpus seed
+Status: started. An 18-case JSONL dataset, synthetic eval corpus, corpus seed
 script, and deterministic CLI runner are in place. The runner calls the real
 `/chat` endpoint, checks expected answer substrings or accepted variants,
 retrieval status, source titles, latency, and cost, then writes JSON and
