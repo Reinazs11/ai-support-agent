@@ -131,16 +131,21 @@ RAG_CONTEXT_MAX_CHARS=6000
 
 The current limit is character-based, not token-based.
 
-Start local infrastructure:
+Use the PowerShell helper for common local workflows:
 
 ```powershell
-docker compose up -d postgres qdrant
+.\scripts\dev.ps1 start
 ```
 
-Run the API:
+`start` runs local infrastructure, migrations, and the API in foreground with
+reload. The API is available at `http://localhost:8000`.
+
+You can also run each step separately:
 
 ```powershell
-python -m uvicorn app.main:app --reload
+.\scripts\dev.ps1 infra
+.\scripts\dev.ps1 migrate
+.\scripts\dev.ps1 api
 ```
 
 Check the health endpoint:
@@ -152,23 +157,20 @@ Invoke-RestMethod http://localhost:8000/health
 Check OpenAI configuration without printing secrets:
 
 ```powershell
-python -m scripts.check_openai_auth
+.\scripts\dev.ps1 auth
 ```
 
 After adding a valid API key, optionally verify API access without sending
 prompts or documents:
 
 ```powershell
-python -m scripts.check_openai_auth --live
+.\scripts\dev.ps1 auth-live
 ```
 
 Run the lowest-cost live RAG smoke test against the local API:
 
 ```powershell
-docker compose up -d postgres qdrant
-python -m alembic upgrade head
-python -m uvicorn app.main:app --reload
-python -m scripts.smoke_live_rag --max-cost-usd 0.005
+.\scripts\dev.ps1 smoke
 ```
 
 The smoke test uploads a tiny `.txt` document, indexes one small embedding batch,
@@ -178,8 +180,8 @@ exceeds the configured limit.
 Run the initial deterministic RAG evaluation against the local API:
 
 ```powershell
-python -m scripts.seed_eval_corpus
-python -m scripts.run_eval --document-manifest-path reports/evals/eval-corpus-manifest.json --max-total-cost-usd 0.05
+.\scripts\dev.ps1 seed-eval
+.\scripts\dev.ps1 eval
 ```
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
@@ -193,9 +195,7 @@ expected document IDs.
 Run the main checks before committing:
 
 ```powershell
-python -m compileall app scripts tests
-python -m pytest
-python -m ruff check .
+.\scripts\dev.ps1 check
 ```
 
 ## Roadmap
