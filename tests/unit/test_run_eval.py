@@ -1,6 +1,8 @@
 import json
 
 from scripts.run_eval import (
+    _build_markdown_report,
+    _result_to_dict,
     build_summary,
     evaluate_response,
     load_dataset,
@@ -55,6 +57,8 @@ def test_evaluate_response_checks_status_answer_and_source() -> None:
 
     assert result.passed is True
     assert result.estimated_cost_usd == 0.0001
+    assert result.failure_reasons == []
+    assert result.actual_source_titles == ["policy.txt"]
 
 
 def test_evaluate_response_accepts_answer_variant_groups() -> None:
@@ -108,6 +112,58 @@ def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     assert summary["pass_rate"] == 0.5
     assert summary["average_latency_ms"] == 20
     assert summary["estimated_cost_usd"] == 0.0003
+
+
+def test_failed_result_records_expected_actual_and_reasons() -> None:
+    case = load_dataset_case(
+        expected_status="generated",
+        expected_answer_contains=["30 days"],
+        expected_source_titles=["policy.txt"],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "No answer.",
+            "retrieval_status": "no_results",
+            "sources": [{"title": "other.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    payload = _result_to_dict(result)
+
+    assert result.passed is False
+    assert result.failure_reasons == ["retrieval_status", "answer", "sources"]
+    assert payload["expected"]["retrieval_status"] == "generated"
+    assert payload["expected"]["answer_contains"] == ["30 days"]
+    assert payload["actual"]["retrieval_status"] == "no_results"
+    assert payload["actual"]["answer"] == "No answer."
+    assert payload["actual"]["source_titles"] == ["other.txt"]
+
+
+def test_markdown_report_includes_failure_details() -> None:
+    case = load_dataset_case(expected_answer_contains=["30 days"])
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "No answer.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    markdown = _build_markdown_report(
+        summary=build_summary([result]),
+        results=[result],
+    )
+
+    assert "- Failure reasons: answer" in markdown
+    assert "- Expected answer contains: ['30 days']" in markdown
+    assert "- Actual answer: No answer." in markdown
 
 
 def test_load_document_manifest_maps_titles_to_document_ids(tmp_path) -> None:

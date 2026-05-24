@@ -62,8 +62,9 @@ Status: started. A small JSONL dataset, synthetic eval corpus, corpus seed
 script, and deterministic CLI runner are in place. The runner calls the real
 `/chat` endpoint, checks expected answer substrings or accepted variants,
 retrieval status, source titles, latency, and cost, then writes JSON and
-Markdown reports. Expanding the dataset to 30 questions and adding richer
-answer-quality evaluation remain pending.
+Markdown reports with failure diagnostics for expected vs. actual status,
+answer checks, and source titles. Expanding the dataset to 30 questions and
+adding richer answer-quality evaluation remain pending.
 
 ## Phase 6: Agent And Workflows
 

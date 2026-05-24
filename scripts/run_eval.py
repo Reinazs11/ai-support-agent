@@ -29,6 +29,14 @@ class EvalResult:
     status_passed: bool
     answer_passed: bool
     source_passed: bool
+    failure_reasons: list[str]
+    expected_status: str | None
+    expected_answer_contains: list[str]
+    expected_answer_contains_any: list[list[str]]
+    expected_source_titles: list[str]
+    actual_status: str | None
+    actual_answer: str
+    actual_source_titles: list[str]
     latency_ms: float
     estimated_cost_usd: float | None
     response: dict[str, Any]
@@ -54,10 +62,9 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
     sources = response.get("sources") or []
     source_titles = {str(source.get("title", "")) for source in sources}
     usage = response.get("usage") or {}
+    actual_status = response.get("retrieval_status")
 
-    status_passed = case.expected_status is None or response.get("retrieval_status") == (
-        case.expected_status
-    )
+    status_passed = case.expected_status is None or actual_status == case.expected_status
     required_terms_passed = all(
         expected.lower() in answer_lower for expected in case.expected_answer_contains
     )
@@ -67,6 +74,11 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
     )
     answer_passed = required_terms_passed and variant_groups_passed
     source_passed = all(title in source_titles for title in case.expected_source_titles)
+    failure_reasons = _build_failure_reasons(
+        status_passed=status_passed,
+        answer_passed=answer_passed,
+        source_passed=source_passed,
+    )
 
     return EvalResult(
         case_id=case.id,
@@ -74,6 +86,14 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
         status_passed=status_passed,
         answer_passed=answer_passed,
         source_passed=source_passed,
+        failure_reasons=failure_reasons,
+        expected_status=case.expected_status,
+        expected_answer_contains=case.expected_answer_contains,
+        expected_answer_contains_any=case.expected_answer_contains_any,
+        expected_source_titles=case.expected_source_titles,
+        actual_status=str(actual_status) if actual_status is not None else None,
+        actual_answer=answer,
+        actual_source_titles=sorted(source_titles),
         latency_ms=latency_ms,
         estimated_cost_usd=usage.get("estimated_cost_usd"),
         response=response,
@@ -247,6 +267,12 @@ def main() -> int:
     print(json.dumps(summary, indent=2))
     print(f"JSON report: {json_path}")
     print(f"Markdown report: {md_path}")
+    failed_results = [result for result in results_from_report(json_path) if not result["passed"]]
+    if failed_results:
+        print("Failed cases:")
+        for result in failed_results:
+            reasons = ", ".join(result["failure_reasons"])
+            print(f"- {result['case_id']}: {reasons}")
 
     if not args.no_fail_on_regression and summary["failed"] > 0:
         return 1
@@ -276,6 +302,18 @@ def _result_to_dict(result: EvalResult) -> dict[str, Any]:
         "status_passed": result.status_passed,
         "answer_passed": result.answer_passed,
         "source_passed": result.source_passed,
+        "failure_reasons": result.failure_reasons,
+        "expected": {
+            "retrieval_status": result.expected_status,
+            "answer_contains": result.expected_answer_contains,
+            "answer_contains_any": result.expected_answer_contains_any,
+            "source_titles": result.expected_source_titles,
+        },
+        "actual": {
+            "retrieval_status": result.actual_status,
+            "answer": result.actual_answer,
+            "source_titles": result.actual_source_titles,
+        },
         "latency_ms": round(result.latency_ms, 2),
         "estimated_cost_usd": result.estimated_cost_usd,
         "response": result.response,
@@ -312,7 +350,42 @@ def _build_markdown_report(summary: dict[str, float | int], results: list[EvalRe
                 "",
             ]
         )
+        if not result.passed:
+            lines.extend(
+                [
+                    f"- Failure reasons: {', '.join(result.failure_reasons)}",
+                    f"- Expected status: {result.expected_status}",
+                    f"- Actual status: {result.actual_status}",
+                    f"- Expected answer contains: {result.expected_answer_contains}",
+                    f"- Expected answer variants: {result.expected_answer_contains_any}",
+                    f"- Actual answer: {result.actual_answer}",
+                    f"- Expected source titles: {result.expected_source_titles}",
+                    f"- Actual source titles: {result.actual_source_titles}",
+                    "",
+                ]
+            )
     return "\n".join(lines)
+
+
+def _build_failure_reasons(
+    *,
+    status_passed: bool,
+    answer_passed: bool,
+    source_passed: bool,
+) -> list[str]:
+    reasons = []
+    if not status_passed:
+        reasons.append("retrieval_status")
+    if not answer_passed:
+        reasons.append("answer")
+    if not source_passed:
+        reasons.append("sources")
+    return reasons
+
+
+def results_from_report(json_path: Path) -> list[dict[str, Any]]:
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    return list(payload.get("results", []))
 
 
 if __name__ == "__main__":
