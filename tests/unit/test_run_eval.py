@@ -99,6 +99,30 @@ def test_evaluate_response_accepts_answer_variant_groups() -> None:
     assert result.passed is True
 
 
+def test_evaluate_response_normalizes_answer_text_before_matching() -> None:
+    case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[
+            ["self serve subscriptions"],
+            ["dont need to return"],
+            ["gift card"],
+        ],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "Self-serve subscriptions don\u2019t need to return a gift-card receipt.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+    )
+
+    assert result.passed is True
+
+
 def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     case = load_dataset_case()
     passing_result = evaluate_response(

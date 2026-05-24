@@ -30,7 +30,9 @@ appear exactly as written. Use `expected_answer_contains_any` for equivalent
 English variants of the same fact. Each variant group passes when at least one
 value in that group appears in the answer. RAG answers and deterministic eval
 expectations are English-only so failures point to answer quality instead of
-language drift.
+language drift. The runner normalizes deterministic answer matching for case,
+diacritics, punctuation, apostrophes, hyphens, and repeated whitespace before
+checking substrings, while reports still preserve the original generated answer.
 
 ## Metrics
 

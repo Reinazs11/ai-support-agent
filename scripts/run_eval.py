@@ -1,6 +1,8 @@
 import argparse
 import json
+import re
 import sys
+import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,7 +60,7 @@ def load_dataset(path: Path, max_questions: int | None = None) -> list[EvalCase]
 
 def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: float) -> EvalResult:
     answer = str(response.get("answer", ""))
-    answer_lower = answer.lower()
+    normalized_answer = _normalize_answer_text(answer)
     sources = response.get("sources") or []
     source_titles = {str(source.get("title", "")) for source in sources}
     usage = response.get("usage") or {}
@@ -66,10 +68,11 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
 
     status_passed = case.expected_status is None or actual_status == case.expected_status
     required_terms_passed = all(
-        expected.lower() in answer_lower for expected in case.expected_answer_contains
+        _normalize_answer_text(expected) in normalized_answer
+        for expected in case.expected_answer_contains
     )
     variant_groups_passed = all(
-        any(variant.lower() in answer_lower for variant in variant_group)
+        any(_normalize_answer_text(variant) in normalized_answer for variant in variant_group)
         for variant_group in case.expected_answer_contains_any
     )
     answer_passed = required_terms_passed and variant_groups_passed
@@ -381,6 +384,14 @@ def _build_failure_reasons(
     if not source_passed:
         reasons.append("sources")
     return reasons
+
+
+def _normalize_answer_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    without_marks = "".join(char for char in normalized if not unicodedata.combining(char))
+    without_apostrophes = without_marks.replace("'", "").replace("’", "")
+    alphanumeric_words = re.sub(r"[^a-z0-9]+", " ", without_apostrophes)
+    return " ".join(alphanumeric_words.split())
 
 
 def results_from_report(json_path: Path) -> list[dict[str, Any]]:

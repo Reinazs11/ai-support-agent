@@ -65,7 +65,9 @@ accepted variants, retrieval status, source titles, latency, and cost, then
 writes JSON and Markdown reports with failure diagnostics for expected vs.
 actual status, answer checks, and source titles. The English-only 30-case
 dataset was calibrated with a local live run on 2026-05-24 and passed 30/30.
-Adding richer answer-quality evaluation remains pending.
+Deterministic answer checks now use normalized substring matching to reduce
+punctuation, apostrophe, hyphen, whitespace, and casing false negatives. Adding
+richer answer-quality evaluation remains pending.
 
 ## Phase 6: Agent And Workflows
 
