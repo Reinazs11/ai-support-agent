@@ -50,3 +50,5 @@ real `/chat` endpoint, uses the manifest to filter each case to the expected
 source documents, writes JSON and Markdown reports to `reports/evals/`, and
 fails by default when deterministic checks do not pass. If the API is not
 running, it exits with a short connection message instead of a stack trace.
+Failed cases include failure reasons plus expected and actual status, answer
+checks, and source titles in the generated reports.
