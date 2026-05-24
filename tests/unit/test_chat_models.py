@@ -63,4 +63,5 @@ def test_grounded_prompt_contains_only_retrieved_chunks() -> None:
     prompt = "\n".join(message["content"] for message in messages)
     assert "Refunds are available within 30 days." in prompt
     assert "What is the refund policy?" in prompt
+    assert "Always answer in English." in prompt
     assert "invented policy" not in prompt

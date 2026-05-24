@@ -93,7 +93,7 @@ Current retrieval statuses include:
 
 Generated answers are prompted only with the chunks returned by retrieval. When
 no chunks are available, the answer uses the explicit fallback:
-`Nao encontrei informacao suficiente para responder com seguranca.`
+`I do not have enough information to answer safely.`
 
 Before calling the chat model, the service applies `RAG_CONTEXT_MAX_CHARS` to
 the retrieved chunk text. Sources in the response reflect chunks included in the
@@ -105,8 +105,8 @@ Request:
 
 ```json
 {
-  "subject": "API fora do ar",
-  "body": "Cliente relata problema urgente",
+  "subject": "API is down",
+  "body": "Customer reports a critical production issue",
   "customer_tier": "enterprise"
 }
 ```

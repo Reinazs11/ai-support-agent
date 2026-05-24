@@ -41,8 +41,8 @@ class RagService:
         if self.embedding_service is None or self.vector_store is None:
             return ChatResponse(
                 answer=(
-                    "A busca vetorial ainda nao esta configurada. Configure um provedor de "
-                    "embeddings e ingira documentos antes de usar o chat RAG."
+                    "Vector search is not configured yet. Configure an embedding provider "
+                    "and ingest documents before using RAG chat."
                 ),
                 sources=[],
                 confidence="low",
@@ -54,8 +54,8 @@ class RagService:
         except EmbeddingConfigurationError:
             return ChatResponse(
                 answer=(
-                    "A busca vetorial nao pode ser executada porque o provedor de embeddings "
-                    "nao esta configurado corretamente."
+                    "Vector search cannot run because the embedding provider is not "
+                    "configured correctly."
                 ),
                 sources=[],
                 confidence="low",
@@ -64,7 +64,7 @@ class RagService:
 
         if not question_vectors:
             return ChatResponse(
-                answer="Nao foi possivel gerar embedding para a pergunta.",
+                answer="Could not generate an embedding for the question.",
                 sources=[],
                 confidence="low",
                 retrieval_status="embedding_unavailable",
@@ -142,8 +142,7 @@ class RagService:
             )
             return ChatResponse(
                 answer=(
-                    "A busca encontrou fontes, mas a geracao de resposta por LLM ainda nao "
-                    "esta configurada."
+                    "Search found sources, but LLM answer generation is not configured yet."
                 ),
                 sources=sources,
                 confidence="low",
@@ -171,7 +170,7 @@ class RagService:
                 error_type=type(exc).__name__,
             )
             return ChatResponse(
-                answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
+                answer="Could not generate an answer with the configured LLM provider.",
                 sources=sources,
                 confidence="low",
                 retrieval_status="generation_failed",
@@ -191,7 +190,7 @@ class RagService:
                 error_type=type(exc).__name__,
             )
             return ChatResponse(
-                answer="Nao foi possivel gerar uma resposta com o provedor de LLM configurado.",
+                answer="Could not generate an answer with the configured LLM provider.",
                 sources=sources,
                 confidence="low",
                 retrieval_status="generation_failed",

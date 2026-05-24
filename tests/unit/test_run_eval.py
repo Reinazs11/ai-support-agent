@@ -41,8 +41,9 @@ def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
 def test_committed_initial_dataset_is_well_formed() -> None:
     cases = load_dataset(Path("evals/initial_rag.jsonl"))
     case_ids = [case.id for case in cases]
+    corpus_dir = Path("evals/corpus")
 
-    assert len(cases) >= 18
+    assert len(cases) >= 30
     assert len(case_ids) == len(set(case_ids))
     for case in cases:
         assert case.question
@@ -50,6 +51,8 @@ def test_committed_initial_dataset_is_well_formed() -> None:
         assert all(group for group in case.expected_answer_contains_any)
         if case.expected_status == "generated":
             assert case.expected_source_titles
+            for source_title in case.expected_source_titles:
+                assert (corpus_dir / source_title).exists()
 
 
 def test_evaluate_response_checks_status_answer_and_source() -> None:
@@ -79,13 +82,13 @@ def test_evaluate_response_checks_status_answer_and_source() -> None:
 def test_evaluate_response_accepts_answer_variant_groups() -> None:
     case = load_dataset_case(
         expected_answer_contains=[],
-        expected_answer_contains_any=[["30 days", "30 dias"]],
+        expected_answer_contains_any=[["30 days", "thirty days"]],
     )
 
     result = evaluate_response(
         case=case,
         response={
-            "answer": "A janela de reembolso e de 30 dias.",
+            "answer": "The refund window is thirty days.",
             "retrieval_status": "generated",
             "sources": [{"title": "policy.txt"}],
             "usage": {"estimated_cost_usd": 0.0001},

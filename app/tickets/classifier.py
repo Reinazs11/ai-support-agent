@@ -9,9 +9,9 @@ class Classification:
     rationale: str
 
 
-HIGH_PRIORITY_TERMS = {"urgent", "urgente", "down", "fora do ar", "critico", "critical"}
-BILLING_TERMS = {"invoice", "billing", "payment", "cobranca", "pagamento", "nota fiscal"}
-TECHNICAL_TERMS = {"error", "erro", "bug", "falha", "api", "login", "senha"}
+HIGH_PRIORITY_TERMS = {"urgent", "down", "critical"}
+BILLING_TERMS = {"invoice", "billing", "payment"}
+TECHNICAL_TERMS = {"error", "bug", "failure", "api", "login", "password"}
 
 
 def classify_ticket_text(text: str) -> Classification:
