@@ -125,15 +125,21 @@ def run_eval(
     report_dir: Path,
     max_questions: int | None,
     document_id: str | None,
+    document_manifest_path: Path | None,
     max_total_cost_usd: float,
 ) -> tuple[dict[str, float | int], Path, Path]:
     cases = load_dataset(dataset_path, max_questions=max_questions)
+    manifest_document_ids = load_document_manifest(document_manifest_path)
     results = []
     total_cost = 0.0
 
     with httpx.Client(base_url=base_url, timeout=60) as client:
         for case in cases:
-            document_ids = [document_id] if document_id else case.document_ids
+            document_ids = resolve_document_ids(
+                case=case,
+                document_id=document_id,
+                manifest_document_ids=manifest_document_ids,
+            )
             started = perf_counter()
             response = client.post(
                 "/chat",
@@ -158,6 +164,46 @@ def run_eval(
     return build_summary(results), json_path, md_path
 
 
+def load_document_manifest(manifest_path: Path | None) -> dict[str, str]:
+    if manifest_path is None:
+        return {}
+    if not manifest_path.exists():
+        raise RuntimeError(f"Document manifest does not exist: {manifest_path}")
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    documents = payload.get("documents") or []
+    return {
+        str(document["title"]): str(document["document_id"])
+        for document in documents
+        if document.get("title") and document.get("document_id")
+    }
+
+
+def resolve_document_ids(
+    *,
+    case: EvalCase,
+    document_id: str | None,
+    manifest_document_ids: dict[str, str],
+) -> list[str]:
+    if document_id:
+        return [document_id]
+    if case.document_ids:
+        return case.document_ids
+    if not manifest_document_ids:
+        return []
+    missing_titles = [
+        title for title in case.expected_source_titles if title not in manifest_document_ids
+    ]
+    if missing_titles:
+        raise RuntimeError(
+            f"Document manifest is missing IDs for case {case.id}: "
+            f"{', '.join(missing_titles)}"
+        )
+    return [
+        manifest_document_ids[title]
+        for title in case.expected_source_titles
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run deterministic RAG evals against /chat.")
     parser.add_argument("--base-url", default="http://localhost:8000")
@@ -165,6 +211,7 @@ def main() -> int:
     parser.add_argument("--report-dir", default="reports/evals")
     parser.add_argument("--max-questions", type=int, default=None)
     parser.add_argument("--document-id", default=None)
+    parser.add_argument("--document-manifest-path", default=None)
     parser.add_argument("--max-total-cost-usd", type=float, default=0.05)
     parser.add_argument("--no-fail-on-regression", action="store_true")
     args = parser.parse_args()
@@ -176,6 +223,11 @@ def main() -> int:
             report_dir=Path(args.report_dir),
             max_questions=args.max_questions,
             document_id=args.document_id,
+            document_manifest_path=(
+                Path(args.document_manifest_path)
+                if args.document_manifest_path is not None
+                else None
+            ),
             max_total_cost_usd=args.max_total_cost_usd,
         )
     except httpx.ConnectError:

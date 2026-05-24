@@ -1,6 +1,12 @@
 import json
 
-from scripts.run_eval import build_summary, evaluate_response, load_dataset
+from scripts.run_eval import (
+    build_summary,
+    evaluate_response,
+    load_dataset,
+    load_document_manifest,
+    resolve_document_ids,
+)
 
 
 def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
@@ -102,6 +108,52 @@ def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     assert summary["pass_rate"] == 0.5
     assert summary["average_latency_ms"] == 20
     assert summary["estimated_cost_usd"] == 0.0003
+
+
+def test_load_document_manifest_maps_titles_to_document_ids(tmp_path) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "documents": [
+                    {"title": "refund_policy.txt", "document_id": "doc-refund"},
+                    {"title": "billing_policy.txt", "document_id": "doc-billing"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = load_document_manifest(manifest_path)
+
+    assert manifest == {
+        "refund_policy.txt": "doc-refund",
+        "billing_policy.txt": "doc-billing",
+    }
+
+
+def test_resolve_document_ids_prefers_explicit_override() -> None:
+    case = load_dataset_case(expected_source_titles=["refund_policy.txt"])
+
+    document_ids = resolve_document_ids(
+        case=case,
+        document_id="override-doc",
+        manifest_document_ids={"refund_policy.txt": "manifest-doc"},
+    )
+
+    assert document_ids == ["override-doc"]
+
+
+def test_resolve_document_ids_uses_manifest_titles() -> None:
+    case = load_dataset_case(expected_source_titles=["refund_policy.txt"])
+
+    document_ids = resolve_document_ids(
+        case=case,
+        document_id=None,
+        manifest_document_ids={"refund_policy.txt": "manifest-doc"},
+    )
+
+    assert document_ids == ["manifest-doc"]
 
 
 def load_dataset_case(
