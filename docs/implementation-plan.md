@@ -26,13 +26,12 @@ execution was validated locally with Docker Compose.
 - Chunk documents, generate embeddings, create Qdrant collection, and index chunks.
 - Store chunk metadata in PostgreSQL with Qdrant point IDs.
 
-Status: in progress. Uploaded files are stored locally, document metadata and
-chunks are persisted in PostgreSQL, and ingestion can generate embeddings and
-index chunks in Qdrant when an embedding provider is configured. The first
-provider is OpenAI, but settings now use a generic embedding provider layer so a
-local provider can replace it later without changing the ingestion contract.
-`/chat` can embed a question, retrieve top-k chunks from Qdrant, and return
-source citations. LLM answer generation is still pending.
+Status: implemented for the portfolio baseline. Uploaded files are stored
+locally, document metadata and chunks are persisted in PostgreSQL, and ingestion
+can generate embeddings and index chunks in Qdrant when an embedding provider is
+configured. The first provider is OpenAI, and settings use a generic embedding
+provider layer so a local provider can replace it later without changing the
+ingestion contract. Local embeddings remain reserved but not implemented.
 
 ## Phase 4: RAG
 
@@ -41,16 +40,15 @@ source citations. LLM answer generation is still pending.
 - Add fallback when context is insufficient.
 - Log retrieved documents, scores, latency, model, and token/cost estimates.
 
-Status: started. `/chat` now retrieves top-k chunks, prompts a configurable chat
-model with only those retrieved chunks, returns the generated answer plus source
-citations, and falls back explicitly when no retrieved context is available.
-Initial logging records top-k, model, source IDs/scores, and retrieval/generation
-latency. Hardening increments added document ID filtering, a character-based
-context limit before generation, context truncation logging, and controlled
-handling for unexpected chat-provider errors. Chat responses now include token
-usage when the provider returns it, and cost estimates when per-1M-token rates
-are configured. Richer metadata filters, token-aware preflight budgeting, and
-deeper provider retry behavior remain pending.
+Status: implemented for the portfolio baseline. `/chat` retrieves top-k chunks,
+prompts a configurable chat model with only those retrieved chunks, returns the
+generated answer plus source citations, and falls back explicitly when retrieved
+context is unavailable or insufficient. Logging records top-k, model, source
+IDs/scores, retrieval/generation latency, context truncation, token usage, and
+estimated cost when rates are configured. Document ID filtering, character-based
+context limits, and controlled provider-error handling are in place. Richer
+metadata filters, token-aware preflight budgeting, and deeper provider retry
+behavior remain possible hardening work, but they are not blockers for Phase 6.
 
 ## Phase 5: Evaluation
 
@@ -86,12 +84,25 @@ against the right targets.
 - Keep business actions simulated or human-approved by default.
 - Add n8n webhook workflow after API behavior is stable.
 
-Status: started. The first workflow endpoint routes between direct RAG answers
-and deterministic ticket classification with LangGraph. High-priority tickets
-route to a human-escalation state, and ticket workflows now persist an internal
-ticket record in PostgreSQL. Ticket workflows also generate local email drafts,
-but sending remains human-approval-required and no external communication is
-sent automatically. n8n webhooks and LLM-assisted routing remain pending.
+Status: in progress. `/agent/respond` routes between direct RAG answers and
+deterministic ticket classification with LangGraph. Ticket workflows persist an
+internal ticket record in PostgreSQL and generate local email drafts, while
+email sending and high-priority escalation remain human-approval-required. No
+external communication is sent automatically. n8n webhooks and LLM-assisted
+routing remain pending.
+
+Recommended next increments:
+
+1. Add an agent workflow evaluation baseline for `/agent/respond` with a small
+   deterministic dataset covering route, ticket category, priority, actions,
+   email-draft approval, and no automatic external side effects.
+2. Add structured workflow audit logs for route, action names, ticket ID,
+   approval-required status, and latency without logging sensitive message
+   content.
+3. Add an n8n webhook simulation only after workflow behavior is covered by
+   evaluation and audit logs.
+4. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
+   deterministic workflow baseline is stable.
 
 ## Phase 7: Observability And Deploy
 

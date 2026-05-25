@@ -17,8 +17,9 @@ tickets, and later executes controlled workflows with LangGraph.
   composition, and citations.
 - `tickets`: deterministic first-pass classification and later LLM-assisted routing.
 - `agents`: LangGraph state and controlled tools for Phase 6 workflows. These
-  should route between RAG answers and simulated or human-approved business
-  actions before any external side effects are enabled.
+  route between RAG answers, ticket classification, internal ticket persistence,
+  local email drafts, and human-approved business actions. External side effects
+  should remain disabled until workflow evaluation and audit logs are in place.
 - `evals`: datasets, runners, metrics, and Markdown reports.
 - `observability`: logs, latency spans, LLM traces, cost, and retrieved-document audit.
 
@@ -54,3 +55,5 @@ tickets, and later executes controlled workflows with LangGraph.
 - Cost estimates use configured per-1M-token rates instead of hardcoded pricing
   so the project can stay accurate as provider prices change.
 - Safety fallback is mandatory when there is insufficient retrieved context.
+- Agent workflows should be measured with deterministic workflow evals before
+  connecting external automation such as n8n webhooks.

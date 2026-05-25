@@ -27,7 +27,7 @@ quality, and honest documentation about what is complete and what is still plann
 
 Phase 1 foundation, Phase 2 persistence, Phase 3 ingestion/indexing/retrieval,
 Phase 4 RAG answer generation, and Phase 5 evaluation are in place. Phase 6
-agent workflows are starting.
+agent workflows are in progress.
 
 Implemented:
 
@@ -59,6 +59,8 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
+- Agent workflow evaluation baseline for `/agent/respond`.
+- Structured workflow audit logs.
 - Langfuse tracing and richer observability dashboards.
 - n8n webhook workflow after API behavior is stable.
 - Deployment setup.
@@ -198,6 +200,11 @@ enable the heuristic semantic judge:
 This is not LLM-as-judge or Ragas. It is a local token-overlap heuristic that is
 useful for low-cost regression checks, but it can miss real semantic errors and
 can fail valid answers with different wording.
+
+The RAG eval runner does not yet evaluate agent workflow behavior. The next
+planned evaluation increment is a deterministic `/agent/respond` workflow eval
+for route selection, ticket fields, action statuses, and human-approval
+boundaries.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots
