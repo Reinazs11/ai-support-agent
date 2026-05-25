@@ -28,13 +28,20 @@ class AgentAction(BaseModel):
     reason: str
 
 
+class AgentEmailDraft(BaseModel):
+    subject: str
+    body: str
+    requires_approval: bool = True
+
+
 class AgentResponse(BaseModel):
-    route: Literal["answer", "classify_ticket", "save_ticket", "human_escalation"]
+    route: Literal["answer", "classify_ticket", "save_ticket", "draft_email", "human_escalation"]
     answer: str | None = None
     confidence: str | None = None
     retrieval_status: str | None = None
     sources: list[SourceCitation] = Field(default_factory=list)
     usage: ChatUsageEstimate | None = None
     ticket: AgentTicketResult | None = None
+    email_draft: AgentEmailDraft | None = None
     actions: list[AgentAction] = Field(default_factory=list)
     human_approval_required: bool = False

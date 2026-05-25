@@ -18,8 +18,8 @@
   and the committed dataset is intentionally small.
 - Agent workflows are starting in Phase 6. The workflow endpoint can route to
   RAG answers or deterministic ticket classification and persists internal
-  ticket records. Email draft generation, LLM-assisted routing, and n8n webhooks
-  are not implemented yet. External business actions remain simulated or
-  human-approved.
+  ticket records. Email drafts are deterministic local drafts and are never sent
+  automatically. LLM-assisted routing and n8n webhooks are not implemented yet.
+  External business actions remain simulated or human-approved.
 - Authentication, authorization, rate limits, and file retention are not implemented.
 - Public deployment configuration is not complete.
