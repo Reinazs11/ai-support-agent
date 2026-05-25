@@ -97,13 +97,16 @@ Each case asserts:
 - whether an email draft is expected;
 - that no external send/webhook action is marked completed automatically.
 
-This baseline runs without live LLM or embedding calls because the committed
-cases are ticket workflows only. RAG answer-mode cases can use disabled-provider
-behavior or a seeded local corpus later, but they should be added intentionally
-because they have different infrastructure and provider risks. The simulated
-n8n webhook action is included in the dataset and must stay `simulated`, not
-`completed`. The goal is to measure workflow safety and routing before adding a
-real webhook dispatch or smarter routing.
+The default baseline runs without live LLM or embedding calls because
+`evals/initial_agent_workflow.jsonl` contains ticket workflows only. The
+optional `evals/agent_answer_disabled.jsonl` dataset covers `mode=answer`
+disabled-provider behavior and checks route, fallback answer text,
+`retrieval_status`, source count, and absence of workflow actions. Run it only
+when the local API is intentionally started without vector search or with a
+controlled seeded corpus, so it does not accidentally spend provider tokens.
+The simulated n8n webhook action is included in the ticket dataset and must stay
+`simulated`, not `completed`. The goal is to measure workflow safety and routing
+before adding a real webhook dispatch or smarter routing.
 
 Current runner:
 
@@ -112,6 +115,7 @@ Current runner:
 .\scripts\dev.ps1 eval
 .\scripts\dev.ps1 eval -SemanticJudge heuristic
 .\scripts\dev.ps1 agent-eval
+python -m scripts.run_agent_eval --dataset-path evals/agent_answer_disabled.jsonl
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then
@@ -126,5 +130,6 @@ generated reports.
 
 The agent eval runner calls `/agent/respond`, writes JSON and Markdown reports
 to `reports/evals/`, and fails by default when a route, ticket field, action
-status, human-approval flag, email-draft expectation, or forbidden completed
-action does not match the dataset.
+status, human-approval flag, email-draft expectation, answer fallback contract,
+retrieval status, source count, or forbidden completed action does not match
+the dataset.

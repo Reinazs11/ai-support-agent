@@ -15,6 +15,9 @@ class AgentEvalCase:
     id: str
     message: str
     mode: str
+    expected_answer_contains: list[str]
+    expected_retrieval_status: str | None
+    expected_source_count: int | None
     expected_route: str
     expected_ticket_category: str | None
     expected_ticket_priority: str | None
@@ -31,6 +34,9 @@ class AgentEvalResult:
     passed: bool
     failure_reasons: list[str]
     expected_route: str
+    expected_answer_contains: list[str]
+    expected_retrieval_status: str | None
+    expected_source_count: int | None
     expected_ticket_category: str | None
     expected_ticket_priority: str | None
     expected_ticket_should_escalate: bool | None
@@ -38,6 +44,9 @@ class AgentEvalResult:
     expected_email_draft_present: bool | None
     expected_action_statuses: dict[str, str]
     forbidden_completed_actions: list[str]
+    actual_answer: str | None
+    actual_retrieval_status: str | None
+    actual_source_count: int
     actual_route: str | None
     actual_ticket_category: str | None
     actual_ticket_priority: str | None
@@ -77,8 +86,23 @@ def evaluate_response(
         for action_name in case.forbidden_completed_actions
         if actual_action_statuses.get(action_name) == "completed"
     ]
+    answer = response.get("answer")
+    answer_text = answer if isinstance(answer, str) else ""
+    sources = response.get("sources") or []
 
     route_passed = response.get("route") == case.expected_route
+    answer_passed = all(
+        expected.casefold() in answer_text.casefold()
+        for expected in case.expected_answer_contains
+    )
+    retrieval_status_passed = _optional_equal(
+        actual=response.get("retrieval_status"),
+        expected=case.expected_retrieval_status,
+    )
+    source_count_passed = _optional_equal(
+        actual=len(sources),
+        expected=case.expected_source_count,
+    )
     ticket_category_passed = _optional_equal(
         actual=ticket.get("category"),
         expected=case.expected_ticket_category,
@@ -107,6 +131,9 @@ def evaluate_response(
 
     failure_reasons = _build_failure_reasons(
         route_passed=route_passed,
+        answer_passed=answer_passed,
+        retrieval_status_passed=retrieval_status_passed,
+        source_count_passed=source_count_passed,
         ticket_category_passed=ticket_category_passed,
         ticket_priority_passed=ticket_priority_passed,
         ticket_escalation_passed=ticket_escalation_passed,
@@ -121,6 +148,9 @@ def evaluate_response(
         passed=not failure_reasons,
         failure_reasons=failure_reasons,
         expected_route=case.expected_route,
+        expected_answer_contains=case.expected_answer_contains,
+        expected_retrieval_status=case.expected_retrieval_status,
+        expected_source_count=case.expected_source_count,
         expected_ticket_category=case.expected_ticket_category,
         expected_ticket_priority=case.expected_ticket_priority,
         expected_ticket_should_escalate=case.expected_ticket_should_escalate,
@@ -128,6 +158,9 @@ def evaluate_response(
         expected_email_draft_present=case.expected_email_draft_present,
         expected_action_statuses=case.expected_action_statuses,
         forbidden_completed_actions=case.forbidden_completed_actions,
+        actual_answer=answer,
+        actual_retrieval_status=response.get("retrieval_status"),
+        actual_source_count=len(sources),
         actual_route=response.get("route"),
         actual_ticket_category=ticket.get("category"),
         actual_ticket_priority=ticket.get("priority"),
@@ -261,6 +294,9 @@ def _case_from_payload(payload: dict[str, Any], line_number: int) -> AgentEvalCa
             id=payload["id"],
             message=payload["message"],
             mode=payload.get("mode", "auto"),
+            expected_answer_contains=list(payload.get("expected_answer_contains", [])),
+            expected_retrieval_status=payload.get("expected_retrieval_status"),
+            expected_source_count=payload.get("expected_source_count"),
             expected_route=payload["expected_route"],
             expected_ticket_category=payload.get("expected_ticket_category"),
             expected_ticket_priority=payload.get("expected_ticket_priority"),
@@ -299,6 +335,9 @@ def _action_statuses_passed(
 def _build_failure_reasons(
     *,
     route_passed: bool,
+    answer_passed: bool,
+    retrieval_status_passed: bool,
+    source_count_passed: bool,
     ticket_category_passed: bool,
     ticket_priority_passed: bool,
     ticket_escalation_passed: bool,
@@ -310,6 +349,12 @@ def _build_failure_reasons(
     reasons = []
     if not route_passed:
         reasons.append("route")
+    if not answer_passed:
+        reasons.append("answer")
+    if not retrieval_status_passed:
+        reasons.append("retrieval_status")
+    if not source_count_passed:
+        reasons.append("source_count")
     if not ticket_category_passed:
         reasons.append("ticket_category")
     if not ticket_priority_passed:
@@ -334,6 +379,9 @@ def _result_to_dict(result: AgentEvalResult) -> dict[str, Any]:
         "failure_reasons": result.failure_reasons,
         "expected": {
             "route": result.expected_route,
+            "answer_contains": result.expected_answer_contains,
+            "retrieval_status": result.expected_retrieval_status,
+            "source_count": result.expected_source_count,
             "ticket_category": result.expected_ticket_category,
             "ticket_priority": result.expected_ticket_priority,
             "ticket_should_escalate": result.expected_ticket_should_escalate,
@@ -344,6 +392,9 @@ def _result_to_dict(result: AgentEvalResult) -> dict[str, Any]:
         },
         "actual": {
             "route": result.actual_route,
+            "answer": result.actual_answer,
+            "retrieval_status": result.actual_retrieval_status,
+            "source_count": result.actual_source_count,
             "ticket_category": result.actual_ticket_category,
             "ticket_priority": result.actual_ticket_priority,
             "ticket_should_escalate": result.actual_ticket_should_escalate,
@@ -383,6 +434,10 @@ def _build_markdown_report(
                 "",
                 f"- Expected route: {result.expected_route}",
                 f"- Actual route: {result.actual_route}",
+                f"- Expected retrieval status: {result.expected_retrieval_status}",
+                f"- Actual retrieval status: {result.actual_retrieval_status}",
+                f"- Expected source count: {result.expected_source_count}",
+                f"- Actual source count: {result.actual_source_count}",
                 f"- Expected action statuses: {result.expected_action_statuses}",
                 f"- Actual action statuses: {result.actual_action_statuses}",
                 f"- Completed forbidden actions: {result.completed_forbidden_actions}",
@@ -398,6 +453,8 @@ def _build_markdown_report(
                     f"- Actual ticket category: {result.actual_ticket_category}",
                     f"- Expected ticket priority: {result.expected_ticket_priority}",
                     f"- Actual ticket priority: {result.actual_ticket_priority}",
+                    f"- Expected answer contains: {result.expected_answer_contains}",
+                    f"- Actual answer: {result.actual_answer}",
                     "",
                 ]
             )
