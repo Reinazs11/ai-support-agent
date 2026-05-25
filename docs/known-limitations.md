@@ -24,9 +24,10 @@
   External business actions remain simulated or human-approved.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
-  side-effect boundaries. It does not yet cover answer-mode RAG workflows,
-  real n8n webhook behavior, persistent audit trail storage, or LLM-assisted
-  routing.
+  side-effect boundaries. It also has an optional disabled-provider answer-path
+  dataset for `/agent/respond`, but it does not yet cover seeded-corpus answer
+  workflows, real n8n webhook behavior, persistent audit trail storage, or
+  LLM-assisted routing.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.

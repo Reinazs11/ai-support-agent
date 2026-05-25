@@ -52,6 +52,61 @@ def test_committed_agent_workflow_dataset_is_well_formed() -> None:
         assert case.expected_action_statuses["notify_n8n_webhook"] == "simulated"
 
 
+def test_committed_agent_answer_disabled_dataset_is_well_formed() -> None:
+    cases = load_dataset(Path("evals/agent_answer_disabled.jsonl"))
+    case_ids = [case.id for case in cases]
+
+    assert len(cases) >= 2
+    assert len(case_ids) == len(set(case_ids))
+    for case in cases:
+        assert case.mode == "answer"
+        assert case.expected_route == "answer"
+        assert case.expected_retrieval_status == "not_configured"
+        assert case.expected_source_count == 0
+        assert case.expected_answer_contains
+        assert case.expected_action_statuses == {}
+        assert "notify_n8n_webhook" in case.forbidden_completed_actions
+
+
+def test_evaluate_response_passes_expected_answer_workflow() -> None:
+    case = load_dataset(Path("evals/agent_answer_disabled.jsonl"), max_cases=1)[0]
+
+    result = evaluate_response(
+        case=case,
+        response=build_answer_response(
+            answer=(
+                "Vector search is not configured yet. Configure an embedding provider "
+                "and ingest documents before using RAG chat."
+            ),
+            retrieval_status="not_configured",
+            source_count=0,
+        ),
+        latency_ms=8.5,
+    )
+
+    assert result.passed is True
+    assert result.failure_reasons == []
+    assert result.actual_retrieval_status == "not_configured"
+    assert result.actual_source_count == 0
+
+
+def test_evaluate_response_fails_answer_contract_mismatch() -> None:
+    case = load_dataset(Path("evals/agent_answer_disabled.jsonl"), max_cases=1)[0]
+
+    result = evaluate_response(
+        case=case,
+        response=build_answer_response(
+            answer="Generated answer from configured context.",
+            retrieval_status="generated",
+            source_count=1,
+        ),
+        latency_ms=8.5,
+    )
+
+    assert result.passed is False
+    assert result.failure_reasons == ["answer", "retrieval_status", "source_count"]
+
+
 def test_evaluate_response_passes_expected_ticket_workflow() -> None:
     case = load_dataset(Path("evals/initial_agent_workflow.jsonl"), max_cases=1)[0]
 
@@ -220,4 +275,27 @@ def build_response(
             {"name": name, "status": status, "reason": "test"}
             for name, status in actions.items()
         ],
+    }
+
+
+def build_answer_response(
+    *,
+    answer: str,
+    retrieval_status: str,
+    source_count: int,
+) -> dict:
+    return {
+        "route": "answer",
+        "answer": answer,
+        "confidence": "low",
+        "retrieval_status": retrieval_status,
+        "sources": [
+            {"document_id": f"doc-{index}", "title": "source.txt", "chunk_id": f"chunk-{index}"}
+            for index in range(source_count)
+        ],
+        "usage": None,
+        "ticket": None,
+        "email_draft": None,
+        "actions": [],
+        "human_approval_required": False,
     }

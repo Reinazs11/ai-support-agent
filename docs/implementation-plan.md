@@ -95,15 +95,19 @@ logs now record route, action names/statuses, ticket IDs, approval flags, source
 counts, workflow run IDs, and latency without logging message or email body
 content. Ticket workflows now include a simulated n8n webhook notification with
 a safe payload summary; no outbound webhook request is sent. Real n8n dispatch
-and LLM-assisted routing remain pending.
+and LLM-assisted routing remain pending. The agent eval runner can also validate
+answer-mode disabled-provider behavior through `evals/agent_answer_disabled.jsonl`,
+but that optional dataset should be run only when the local API configuration is
+known not to call live providers unless explicitly desired.
 
 Recommended next increments:
 
-1. Add answer-mode cases to agent workflow eval only when the seeded RAG or
-   disabled-provider behavior is explicitly chosen for that run.
-2. Design the real n8n dispatch boundary, including approval requirements,
+1. Design the real n8n dispatch boundary, including approval requirements,
    retries, timeout behavior, and secret handling, before enabling outbound
    webhooks.
+2. Add seeded-corpus answer-mode agent eval cases after deciding whether they
+   should run with disabled provider, fake service, or explicitly approved live
+   providers.
 3. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
    deterministic workflow baseline is stable.
 
