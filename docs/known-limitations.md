@@ -11,7 +11,8 @@
   budgeting is character-based rather than token-aware, and cost estimates
   require configured per-token rates.
 - Ticket classification is deterministic and keyword-based.
-- The CLI evaluation runner exists, but `/evals/run` still returns placeholder
-  results and the committed dataset is intentionally small.
+- The CLI evaluation runner is implemented for local deterministic RAG evals,
+  but `/evals/run` still returns placeholder results and the committed dataset
+  is intentionally small.
 - Authentication, authorization, rate limits, and file retention are not implemented.
 - Public deployment configuration is not complete.
