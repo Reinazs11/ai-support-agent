@@ -88,17 +88,18 @@ Status: in progress. `/agent/respond` routes between direct RAG answers and
 deterministic ticket classification with LangGraph. Ticket workflows persist an
 internal ticket record in PostgreSQL and generate local email drafts, while
 email sending and high-priority escalation remain human-approval-required. No
-external communication is sent automatically. n8n webhooks and LLM-assisted
-routing remain pending.
+external communication is sent automatically. A deterministic agent workflow
+eval baseline covers ticket routes, ticket fields, action statuses, email-draft
+approval, and forbidden completed external actions. n8n webhooks and
+LLM-assisted routing remain pending.
 
 Recommended next increments:
 
-1. Add an agent workflow evaluation baseline for `/agent/respond` with a small
-   deterministic dataset covering route, ticket category, priority, actions,
-   email-draft approval, and no automatic external side effects.
-2. Add structured workflow audit logs for route, action names, ticket ID,
+1. Add structured workflow audit logs for route, action names, ticket ID,
    approval-required status, and latency without logging sensitive message
    content.
+2. Add answer-mode cases to agent workflow eval only when the seeded RAG or
+   disabled-provider behavior is explicitly chosen for that run.
 3. Add an n8n webhook simulation only after workflow behavior is covered by
    evaluation and audit logs.
 4. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
