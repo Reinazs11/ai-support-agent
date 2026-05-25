@@ -27,9 +27,10 @@
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
   side-effect boundaries. It also has an optional disabled-provider answer-path
-  dataset for `/agent/respond`, but it does not yet cover seeded-corpus answer
-  workflows, real n8n webhook behavior, persistent audit trail storage, or
-  LLM-assisted routing.
+  dataset and a small seeded-corpus answer-path dataset for `/agent/respond`.
+  These optional datasets still depend on the local API/provider configuration
+  used during the run. The suite does not yet cover real n8n webhook behavior,
+  persistent audit trail storage, or LLM-assisted routing.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.

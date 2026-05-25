@@ -104,6 +104,10 @@ disabled-provider behavior and checks route, fallback answer text,
 `retrieval_status`, source count, and absence of workflow actions. Run it only
 when the local API is intentionally started without vector search or with a
 controlled seeded corpus, so it does not accidentally spend provider tokens.
+`evals/agent_answer_seeded.jsonl` covers a small seeded-corpus answer path and
+uses the eval corpus manifest to filter each case to its expected source
+documents. It should run after `seed-eval`, with the same caution as RAG evals:
+the local API configuration determines whether providers are called.
 The simulated n8n webhook action is included in the ticket dataset and must stay
 `simulated`, not `completed`. The goal is to measure workflow safety and routing
 before adding a real webhook dispatch or smarter routing.
@@ -115,7 +119,8 @@ Current runner:
 .\scripts\dev.ps1 eval
 .\scripts\dev.ps1 eval -SemanticJudge heuristic
 .\scripts\dev.ps1 agent-eval
-python -m scripts.run_agent_eval --dataset-path evals/agent_answer_disabled.jsonl
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_disabled.jsonl
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then
@@ -131,5 +136,6 @@ generated reports.
 The agent eval runner calls `/agent/respond`, writes JSON and Markdown reports
 to `reports/evals/`, and fails by default when a route, ticket field, action
 status, human-approval flag, email-draft expectation, answer fallback contract,
-retrieval status, source count, or forbidden completed action does not match
-the dataset.
+retrieval status, source count, source titles, or forbidden completed action
+does not match the dataset. When `--document-manifest-path` is provided, source
+titles in the dataset are resolved to document IDs before the request is sent.
