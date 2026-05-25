@@ -3,6 +3,7 @@ from typing import Any, Literal, TypedDict
 
 class AgentState(TypedDict, total=False):
     user_message: str
+    workflow_run_id: str
     mode: Literal["auto", "answer", "ticket"]
     top_k: int | None
     document_ids: list[str]

@@ -93,14 +93,17 @@ eval baseline covers ticket routes, ticket fields, action statuses, email-draft
 approval, and forbidden completed external actions. Structured workflow audit
 logs now record route, action names/statuses, ticket IDs, approval flags, source
 counts, workflow run IDs, and latency without logging message or email body
-content. n8n webhooks and LLM-assisted routing remain pending.
+content. Ticket workflows now include a simulated n8n webhook notification with
+a safe payload summary; no outbound webhook request is sent. Real n8n dispatch
+and LLM-assisted routing remain pending.
 
 Recommended next increments:
 
 1. Add answer-mode cases to agent workflow eval only when the seeded RAG or
    disabled-provider behavior is explicitly chosen for that run.
-2. Add an n8n webhook simulation only after workflow behavior is covered by
-   evaluation and audit logs.
+2. Design the real n8n dispatch boundary, including approval requirements,
+   retries, timeout behavior, and secret handling, before enabling outbound
+   webhooks.
 3. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
    deterministic workflow baseline is stable.
 

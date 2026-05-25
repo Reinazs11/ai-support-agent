@@ -48,6 +48,8 @@ def test_committed_agent_workflow_dataset_is_well_formed() -> None:
         assert case.expected_route in {"classify_ticket", "human_escalation"}
         assert case.expected_action_statuses
         assert "send_email" in case.forbidden_completed_actions
+        assert "notify_n8n_webhook" in case.forbidden_completed_actions
+        assert case.expected_action_statuses["notify_n8n_webhook"] == "simulated"
 
 
 def test_evaluate_response_passes_expected_ticket_workflow() -> None:
@@ -65,6 +67,7 @@ def test_evaluate_response_passes_expected_ticket_workflow() -> None:
                 "save_ticket": "completed",
                 "draft_email": "completed",
                 "send_email": "human_approval_required",
+                "notify_n8n_webhook": "simulated",
                 "request_human_review": "human_approval_required",
             },
         ),
@@ -117,6 +120,7 @@ def test_build_summary_reports_pass_rate_and_latency() -> None:
                 "save_ticket": "completed",
                 "draft_email": "completed",
                 "send_email": "human_approval_required",
+                "notify_n8n_webhook": "simulated",
                 "request_human_review": "human_approval_required",
             },
         ),

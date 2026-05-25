@@ -14,6 +14,7 @@ from app.agents.schemas import (
     AgentTicketResult,
 )
 from app.agents.state import AgentState
+from app.agents.webhooks import WebhookSimulationService
 from app.db.models import Ticket
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
@@ -40,9 +41,11 @@ class AgentWorkflowService:
     def __init__(
         self,
         rag_service: RagService | None = None,
+        webhook_service: WebhookSimulationService | None = None,
         session: Session | None = None,
     ) -> None:
         self.rag_service = rag_service or RagService()
+        self.webhook_service = webhook_service or WebhookSimulationService()
         self.session = session
         self.workflow = self._build_workflow()
 
@@ -51,6 +54,7 @@ class AgentWorkflowService:
         workflow_run_id = str(uuid4())
         initial_state = {
             "user_message": request.message,
+            "workflow_run_id": workflow_run_id,
             "mode": request.mode,
             "top_k": request.top_k,
             "document_ids": request.document_ids,
@@ -85,6 +89,7 @@ class AgentWorkflowService:
         workflow.add_node("classify_ticket", self._classify_ticket)
         workflow.add_node("save_ticket", self._save_ticket)
         workflow.add_node("draft_email", self._draft_email)
+        workflow.add_node("simulate_n8n_webhook", self._simulate_n8n_webhook)
         workflow.add_node("human_escalation", self._human_escalation)
 
         workflow.set_entry_point("route_request")
@@ -99,8 +104,9 @@ class AgentWorkflowService:
         workflow.add_edge("answer", END)
         workflow.add_edge("classify_ticket", "save_ticket")
         workflow.add_edge("save_ticket", "draft_email")
+        workflow.add_edge("draft_email", "simulate_n8n_webhook")
         workflow.add_conditional_edges(
-            "draft_email",
+            "simulate_n8n_webhook",
             self._next_after_email_draft,
             {
                 "human_escalation": "human_escalation",
@@ -217,6 +223,32 @@ class AgentWorkflowService:
             "actions": actions,
             "human_approval_required": True,
         }
+
+    def _simulate_n8n_webhook(self, state: AgentState) -> dict[str, object]:
+        dispatch = self.webhook_service.simulate_ticket_notification(
+            ticket_id=state.get("ticket_id"),
+            ticket_status=state.get("ticket_status"),
+            ticket_category=state["ticket_category"],
+            ticket_priority=state["ticket_priority"],
+            should_escalate=state["ticket_should_escalate"],
+            email_requires_approval=state["email_requires_approval"],
+        )
+        actions = list(state.get("actions", []))
+        actions.append(
+            {
+                "name": dispatch.action_name,
+                "status": dispatch.status,
+                "reason": dispatch.reason,
+            }
+        )
+        logger.info(
+            "agent_n8n_webhook_simulated",
+            workflow_run_id=state.get("workflow_run_id"),
+            action_name=dispatch.action_name,
+            action_status=dispatch.status,
+            payload_summary=dispatch.payload_summary,
+        )
+        return {"actions": actions}
 
     def _human_escalation(self, state: AgentState) -> dict[str, object]:
         actions = list(state.get("actions", []))

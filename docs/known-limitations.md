@@ -19,12 +19,14 @@
 - Agent workflows are starting in Phase 6. The workflow endpoint can route to
   RAG answers or deterministic ticket classification and persists internal
   ticket records. Email drafts are deterministic local drafts and are never sent
-  automatically. LLM-assisted routing and n8n webhooks are not implemented yet.
+  automatically. n8n webhook notifications are simulated locally and never sent.
+  LLM-assisted routing and real n8n webhook dispatch are not implemented yet.
   External business actions remain simulated or human-approved.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
   side-effect boundaries. It does not yet cover answer-mode RAG workflows,
-  n8n webhook behavior, persistent audit trail storage, or LLM-assisted routing.
+  real n8n webhook behavior, persistent audit trail storage, or LLM-assisted
+  routing.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.
