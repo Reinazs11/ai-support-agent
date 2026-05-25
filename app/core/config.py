@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     max_upload_mb: int = 25
     upload_dir: str = "uploads/documents"
 
+    n8n_webhook_mode: Literal["disabled", "simulated"] = "simulated"
+    n8n_webhook_url: str = ""
+    n8n_webhook_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    n8n_webhook_max_retries: int = Field(default=0, ge=0, le=3)
+    n8n_webhook_requires_human_approval: bool = True
+
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"

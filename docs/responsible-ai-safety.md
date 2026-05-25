@@ -12,6 +12,8 @@
 - Webhook notifications may be simulated locally, but outbound webhook dispatch
   must remain disabled until approval, retry, timeout, and secret-handling rules
   are designed.
+- Webhook URLs or secrets must not be logged. Logs may record whether a URL is
+  configured, but not the URL value.
 
 ## Data Handling
 
