@@ -113,6 +113,63 @@ Request:
 
 Response includes category, priority, escalation flag, and rationale.
 
+## POST /agent/respond
+
+Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
+or to deterministic ticket classification. Business actions are currently
+reported as simulated or human-approval-required; no external side effects are
+performed.
+
+Request:
+
+```json
+{
+  "message": "The production API is down and this is critical.",
+  "mode": "auto",
+  "top_k": 5,
+  "document_ids": ["document-uuid"],
+  "customer_tier": "enterprise"
+}
+```
+
+`mode` can be:
+
+- `auto`: use a simple deterministic router.
+- `answer`: force the RAG answer path.
+- `ticket`: force the ticket classification path.
+
+Response:
+
+```json
+{
+  "route": "human_escalation",
+  "answer": null,
+  "confidence": null,
+  "retrieval_status": null,
+  "sources": [],
+  "usage": null,
+  "ticket": {
+    "category": "technical_support",
+    "priority": "high",
+    "should_escalate": true,
+    "rationale": "Initial deterministic classifier; replace with evaluated LLM flow later."
+  },
+  "actions": [
+    {
+      "name": "classify_ticket",
+      "status": "simulated",
+      "reason": "Ticket classification is recorded in workflow state only."
+    },
+    {
+      "name": "request_human_review",
+      "status": "human_approval_required",
+      "reason": "High-priority ticket workflow requires human review."
+    }
+  ],
+  "human_approval_required": true
+}
+```
+
 ## POST /evals/run
 
 Placeholder endpoint for future API-triggered evaluation runs. Use

@@ -86,11 +86,11 @@ against the right targets.
 - Keep business actions simulated or human-approved by default.
 - Add n8n webhook workflow after API behavior is stable.
 
-Status: starting. The first increments should keep the existing `/chat` and
-ticket-classification contracts stable while adding an explicit workflow layer
-that can route between direct RAG answers and controlled ticket actions. Business
-actions should remain simulated or human-approved until the workflow behavior is
-covered by tests and evaluation cases.
+Status: started. The first workflow endpoint routes between direct RAG answers
+and deterministic ticket classification with LangGraph. High-priority tickets
+route to a human-escalation state, and all business actions are reported as
+simulated or human-approval-required. Ticket persistence, email draft generation,
+n8n webhooks, and LLM-assisted routing remain pending.
 
 ## Phase 7: Observability And Deploy
 
