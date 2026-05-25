@@ -144,6 +144,20 @@ RAG_CONTEXT_MAX_CHARS=6000
 
 The current limit is character-based, not token-based.
 
+Configure the n8n webhook boundary in `.env`:
+
+```powershell
+N8N_WEBHOOK_MODE=simulated
+N8N_WEBHOOK_URL=
+N8N_WEBHOOK_TIMEOUT_SECONDS=5
+N8N_WEBHOOK_MAX_RETRIES=0
+N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=true
+```
+
+Real outbound webhook dispatch is not implemented yet. `N8N_WEBHOOK_URL` is
+reserved for the future boundary and is only logged as configured/not configured;
+it is never called by the current workflow.
+
 Use the PowerShell helper for common local workflows:
 
 ```powershell

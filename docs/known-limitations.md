@@ -20,8 +20,10 @@
   RAG answers or deterministic ticket classification and persists internal
   ticket records. Email drafts are deterministic local drafts and are never sent
   automatically. n8n webhook notifications are simulated locally and never sent.
-  LLM-assisted routing and real n8n webhook dispatch are not implemented yet.
-  External business actions remain simulated or human-approved.
+  n8n mode, URL presence, timeout, retries, and approval policy are configured
+  only as a dispatch boundary. LLM-assisted routing and real n8n webhook dispatch
+  are not implemented yet. External business actions remain simulated or
+  human-approved.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
   side-effect boundaries. It also has an optional disabled-provider answer-path

@@ -122,6 +122,10 @@ reported as simulated or human-approval-required. The current n8n webhook step
 is a local simulation only; no email, webhook, or third-party side effect is
 performed.
 
+The n8n boundary exposes configuration for mode, URL presence, timeout, retries,
+and human-approval requirement. Current supported modes are `simulated` and
+`disabled`; there is intentionally no live outbound mode yet.
+
 Request:
 
 ```json

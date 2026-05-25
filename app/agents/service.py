@@ -247,6 +247,13 @@ class AgentWorkflowService:
             action_name=dispatch.action_name,
             action_status=dispatch.status,
             payload_summary=dispatch.payload_summary,
+            dispatch_policy={
+                "mode": dispatch.dispatch_policy.mode,
+                "url_configured": dispatch.dispatch_policy.url_configured,
+                "timeout_seconds": dispatch.dispatch_policy.timeout_seconds,
+                "max_retries": dispatch.dispatch_policy.max_retries,
+                "requires_human_approval": dispatch.dispatch_policy.requires_human_approval,
+            },
         )
         return {"actions": actions}
 
