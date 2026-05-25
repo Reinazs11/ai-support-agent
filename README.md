@@ -25,9 +25,9 @@ quality, and honest documentation about what is complete and what is still plann
 
 ## Current Status
 
-Phase 1, the project foundation, is in place. Phase 2 persistence is merged,
-Phase 3 ingestion, indexing, and retrieval are implemented, and Phase 4 RAG
-answer generation has started.
+Phase 1 foundation, Phase 2 persistence, Phase 3 ingestion/indexing/retrieval,
+Phase 4 RAG answer generation, and Phase 5 evaluation are in place. Phase 6
+agent workflows are starting.
 
 Implemented:
 
@@ -45,7 +45,8 @@ Implemented:
 - Character-based context budgeting before LLM generation, with logs for
   retrieved count, context count, context size, truncation, model, top-k, and latency.
 - Token usage and configurable cost estimates for generated chat responses.
-- Initial CLI evaluation runner for deterministic `/chat` checks.
+- CLI evaluation runner for deterministic `/chat` checks plus an optional local
+  heuristic semantic judge.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -183,6 +184,17 @@ Run the initial deterministic RAG evaluation against the local API:
 .\scripts\dev.ps1 seed-eval
 .\scripts\dev.ps1 eval
 ```
+
+To add a cheap local answer-correctness signal that tolerates simple paraphrases,
+enable the heuristic semantic judge:
+
+```powershell
+.\scripts\dev.ps1 eval -SemanticJudge heuristic
+```
+
+This is not LLM-as-judge or Ragas. It is a local token-overlap heuristic that is
+useful for low-cost regression checks, but it can miss real semantic errors and
+can fail valid answers with different wording.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots

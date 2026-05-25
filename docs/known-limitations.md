@@ -11,8 +11,12 @@
   budgeting is character-based rather than token-aware, and cost estimates
   require configured per-token rates.
 - Ticket classification is deterministic and keyword-based.
-- The CLI evaluation runner is implemented for local deterministic RAG evals,
-  but `/evals/run` still returns placeholder results and the committed dataset
-  is intentionally small.
+- The CLI evaluation runner supports deterministic RAG evals plus an optional
+  local heuristic semantic judge. The heuristic is not LLM-as-judge or Ragas: it
+  scores normalized token overlap, so it can miss contradictions or reject valid
+  answers with different wording. `/evals/run` still returns placeholder results
+  and the committed dataset is intentionally small.
+- Agent workflows are starting in Phase 6. Business actions are not implemented
+  as real external side effects yet and should remain simulated or human-approved.
 - Authentication, authorization, rate limits, and file retention are not implemented.
 - Public deployment configuration is not complete.
