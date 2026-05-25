@@ -14,6 +14,8 @@ class AgentRequest(BaseModel):
 
 
 class AgentTicketResult(BaseModel):
+    id: str | None = None
+    status: str | None = None
     category: str
     priority: str
     should_escalate: bool
@@ -22,12 +24,12 @@ class AgentTicketResult(BaseModel):
 
 class AgentAction(BaseModel):
     name: str
-    status: Literal["simulated", "human_approval_required"]
+    status: Literal["completed", "simulated", "human_approval_required"]
     reason: str
 
 
 class AgentResponse(BaseModel):
-    route: Literal["answer", "classify_ticket", "human_escalation"]
+    route: Literal["answer", "classify_ticket", "save_ticket", "human_escalation"]
     answer: str | None = None
     confidence: str | None = None
     retrieval_status: str | None = None

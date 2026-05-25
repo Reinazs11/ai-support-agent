@@ -1,10 +1,34 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
+from app.db.base import Base
+from app.db.models import Ticket
+from app.db.session import create_session_factory, get_db_session
 from app.main import create_app
 
 
+def build_test_session() -> Session:
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session_factory = create_session_factory(engine)
+    return session_factory()
+
+
+def build_test_client(session: Session) -> TestClient:
+    app = create_app()
+    app.dependency_overrides[get_db_session] = lambda: session
+    return TestClient(app)
+
+
 def test_agent_answer_contract_uses_rag_response_shape() -> None:
-    client = TestClient(create_app())
+    session = build_test_session()
+    client = build_test_client(session)
 
     response = client.post(
         "/agent/respond",
@@ -22,8 +46,9 @@ def test_agent_answer_contract_uses_rag_response_shape() -> None:
     assert body["human_approval_required"] is False
 
 
-def test_agent_ticket_contract_keeps_actions_simulated() -> None:
-    client = TestClient(create_app())
+def test_agent_ticket_contract_persists_ticket_and_keeps_external_actions_controlled() -> None:
+    session = build_test_session()
+    client = build_test_client(session)
 
     response = client.post(
         "/agent/respond",
@@ -36,6 +61,8 @@ def test_agent_ticket_contract_keeps_actions_simulated() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["route"] == "human_escalation"
+    assert body["ticket"]["id"]
+    assert body["ticket"]["status"] == "open"
     assert body["ticket"]["category"] == "technical_support"
     assert body["ticket"]["priority"] == "high"
     assert body["ticket"]["should_escalate"] is True
@@ -44,7 +71,12 @@ def test_agent_ticket_contract_keeps_actions_simulated() -> None:
         {
             "name": "classify_ticket",
             "status": "simulated",
-            "reason": "Ticket classification is recorded in workflow state only.",
+            "reason": "Ticket classification uses the deterministic local classifier.",
+        },
+        {
+            "name": "save_ticket",
+            "status": "completed",
+            "reason": "Ticket persisted to local metadata storage.",
         },
         {
             "name": "request_human_review",
@@ -52,3 +84,8 @@ def test_agent_ticket_contract_keeps_actions_simulated() -> None:
             "reason": "High-priority ticket workflow requires human review.",
         },
     ]
+
+    persisted = session.scalar(select(Ticket).where(Ticket.id == body["ticket"]["id"]))
+    assert persisted is not None
+    assert persisted.status == "open"
+    assert persisted.priority == "high"

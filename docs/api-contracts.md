@@ -116,8 +116,9 @@ Response includes category, priority, escalation flag, and rationale.
 ## POST /agent/respond
 
 Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
-or to deterministic ticket classification. Business actions are currently
-reported as simulated or human-approval-required; no external side effects are
+or to deterministic ticket classification. Ticket workflows persist an internal
+ticket record, but external business actions are reported as simulated or
+human-approval-required; no email, webhook, or third-party side effect is
 performed.
 
 Request:
@@ -149,6 +150,8 @@ Response:
   "sources": [],
   "usage": null,
   "ticket": {
+    "id": "ticket-uuid",
+    "status": "open",
     "category": "technical_support",
     "priority": "high",
     "should_escalate": true,
@@ -158,7 +161,12 @@ Response:
     {
       "name": "classify_ticket",
       "status": "simulated",
-      "reason": "Ticket classification is recorded in workflow state only."
+      "reason": "Ticket classification uses the deterministic local classifier."
+    },
+    {
+      "name": "save_ticket",
+      "status": "completed",
+      "reason": "Ticket persisted to local metadata storage."
     },
     {
       "name": "request_human_review",

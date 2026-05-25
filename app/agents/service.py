@@ -1,9 +1,12 @@
 from typing import Any
+from uuid import uuid4
 
 from langgraph.graph import END, StateGraph
+from sqlalchemy.orm import Session
 
 from app.agents.schemas import AgentAction, AgentRequest, AgentResponse, AgentTicketResult
 from app.agents.state import AgentState
+from app.db.models import Ticket
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
 from app.tickets.classifier import classify_ticket_text
@@ -24,8 +27,13 @@ TICKET_SIGNAL_TERMS = {
 
 
 class AgentWorkflowService:
-    def __init__(self, rag_service: RagService | None = None) -> None:
+    def __init__(
+        self,
+        rag_service: RagService | None = None,
+        session: Session | None = None,
+    ) -> None:
         self.rag_service = rag_service or RagService()
+        self.session = session
         self.workflow = self._build_workflow()
 
     async def run(self, request: AgentRequest) -> AgentResponse:
@@ -47,6 +55,7 @@ class AgentWorkflowService:
         workflow.add_node("route_request", self._route_request)
         workflow.add_node("answer", self._answer)
         workflow.add_node("classify_ticket", self._classify_ticket)
+        workflow.add_node("save_ticket", self._save_ticket)
         workflow.add_node("human_escalation", self._human_escalation)
 
         workflow.set_entry_point("route_request")
@@ -59,9 +68,10 @@ class AgentWorkflowService:
             },
         )
         workflow.add_edge("answer", END)
+        workflow.add_edge("classify_ticket", "save_ticket")
         workflow.add_conditional_edges(
-            "classify_ticket",
-            self._next_after_ticket_classification,
+            "save_ticket",
+            self._next_after_ticket_save,
             {
                 "human_escalation": "human_escalation",
                 "complete": END,
@@ -103,17 +113,51 @@ class AgentWorkflowService:
             {
                 "name": "classify_ticket",
                 "status": "simulated",
-                "reason": "Ticket classification is recorded in workflow state only.",
+                "reason": "Ticket classification uses the deterministic local classifier.",
             }
         ]
         return {
-            "route": "human_escalation"
-            if classification.should_escalate
-            else "classify_ticket",
+            "route": "save_ticket",
             "ticket_category": classification.category,
             "ticket_priority": classification.priority,
             "ticket_should_escalate": classification.should_escalate,
             "ticket_rationale": classification.rationale,
+            "ticket_subject": _ticket_subject_from_message(state["user_message"]),
+            "ticket_body": state["user_message"],
+            "actions": actions,
+        }
+
+    async def _save_ticket(self, state: AgentState) -> dict[str, object]:
+        ticket = Ticket(
+            id=str(uuid4()),
+            subject=state["ticket_subject"],
+            body=state["ticket_body"],
+            category=state["ticket_category"],
+            priority=state["ticket_priority"],
+            status="open",
+        )
+        if self.session is not None:
+            self.session.add(ticket)
+            self.session.commit()
+
+        actions = list(state.get("actions", []))
+        actions.append(
+            {
+                "name": "save_ticket",
+                "status": "completed" if self.session is not None else "simulated",
+                "reason": (
+                    "Ticket persisted to local metadata storage."
+                    if self.session is not None
+                    else "Ticket persistence skipped because no database session was provided."
+                ),
+            }
+        )
+        return {
+            "route": "human_escalation"
+            if state["ticket_should_escalate"]
+            else "classify_ticket",
+            "ticket_id": ticket.id,
+            "ticket_status": ticket.status,
             "actions": actions,
         }
 
@@ -132,7 +176,7 @@ class AgentWorkflowService:
             "human_approval_required": True,
         }
 
-    def _next_after_ticket_classification(self, state: AgentState) -> str:
+    def _next_after_ticket_save(self, state: AgentState) -> str:
         if state.get("ticket_should_escalate"):
             return "human_escalation"
         return "complete"
@@ -141,6 +185,8 @@ class AgentWorkflowService:
         ticket = None
         if "ticket_category" in state:
             ticket = AgentTicketResult(
+                id=state.get("ticket_id"),
+                status=state.get("ticket_status"),
                 category=state["ticket_category"],
                 priority=state["ticket_priority"],
                 should_escalate=state["ticket_should_escalate"],
@@ -170,3 +216,8 @@ class AgentWorkflowService:
 def _looks_like_ticket(message: str) -> bool:
     normalized = message.lower()
     return any(term in normalized for term in TICKET_SIGNAL_TERMS)
+
+
+def _ticket_subject_from_message(message: str) -> str:
+    first_line = message.strip().splitlines()[0]
+    return first_line[:120] or "Support request"
