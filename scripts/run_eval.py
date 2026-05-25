@@ -13,6 +13,35 @@ import httpx
 
 from app.rag.chat_models import INSUFFICIENT_CONTEXT_ANSWER
 
+SEMANTIC_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "can",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "its",
+    "may",
+    "must",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "their",
+    "they",
+    "to",
+    "with",
+}
+
 
 @dataclass(frozen=True)
 class EvalCase:
@@ -34,10 +63,18 @@ class EvalResult:
     passed: bool
     status_passed: bool
     answer_passed: bool
+    answer_correctness_passed: bool
     source_passed: bool
     quality_passed: bool
     quality_score: float
     quality_failure_reasons: list[str]
+    semantic_evaluated: bool
+    semantic_passed: bool
+    semantic_score: float | None
+    semantic_threshold: float | None
+    semantic_provider: str
+    semantic_rationale: str
+    semantic_failure_reasons: list[str]
     failure_reasons: list[str]
     expected_status: str | None
     expected_answer_contains: list[str]
@@ -51,6 +88,80 @@ class EvalResult:
     latency_ms: float
     estimated_cost_usd: float | None
     response: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class SemanticJudgeResult:
+    evaluated: bool
+    passed: bool
+    score: float | None
+    threshold: float | None
+    provider: str
+    rationale: str
+    failure_reasons: list[str]
+
+
+class DisabledSemanticJudge:
+    provider = "disabled"
+    threshold = None
+
+    def evaluate(self, case: EvalCase, answer: str) -> SemanticJudgeResult:
+        return SemanticJudgeResult(
+            evaluated=False,
+            passed=True,
+            score=None,
+            threshold=None,
+            provider=self.provider,
+            rationale="Semantic judge disabled.",
+            failure_reasons=[],
+        )
+
+
+class HeuristicSemanticJudge:
+    provider = "heuristic"
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def evaluate(self, case: EvalCase, answer: str) -> SemanticJudgeResult:
+        if case.expected_status in {"insufficient_context", "no_results"}:
+            return self._skipped("Case expects fallback behavior.")
+
+        fact_groups = _semantic_fact_groups(case)
+        if not fact_groups:
+            return self._skipped("Case has no expected answer facts.")
+
+        scores = [
+            max(_semantic_overlap_score(variant=variant, answer=answer) for variant in group)
+            for group in fact_groups
+        ]
+        score = round(sum(scores) / len(scores), 4)
+        matched = sum(1 for item_score in scores if item_score >= self.threshold)
+        passed = score >= self.threshold
+        failure_reasons = [] if passed else ["expected_facts_below_threshold"]
+        return SemanticJudgeResult(
+            evaluated=True,
+            passed=passed,
+            score=score,
+            threshold=self.threshold,
+            provider=self.provider,
+            rationale=(
+                f"Matched {matched}/{len(scores)} fact groups with average "
+                f"semantic score {score}."
+            ),
+            failure_reasons=failure_reasons,
+        )
+
+    def _skipped(self, rationale: str) -> SemanticJudgeResult:
+        return SemanticJudgeResult(
+            evaluated=False,
+            passed=True,
+            score=None,
+            threshold=self.threshold,
+            provider=self.provider,
+            rationale=rationale,
+            failure_reasons=[],
+        )
 
 
 def load_dataset(path: Path, max_questions: int | None = None) -> list[EvalCase]:
@@ -67,7 +178,13 @@ def load_dataset(path: Path, max_questions: int | None = None) -> list[EvalCase]
     return cases
 
 
-def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: float) -> EvalResult:
+def evaluate_response(
+    case: EvalCase,
+    response: dict[str, Any],
+    latency_ms: float,
+    semantic_judge: DisabledSemanticJudge | HeuristicSemanticJudge | None = None,
+) -> EvalResult:
+    semantic_judge = semantic_judge or DisabledSemanticJudge()
     answer = str(response.get("answer", ""))
     normalized_answer = _normalize_answer_text(answer)
     sources = response.get("sources") or []
@@ -91,22 +208,41 @@ def evaluate_response(case: EvalCase, response: dict[str, Any], latency_ms: floa
         normalized_answer=normalized_answer,
         answer=answer,
     )
+    semantic_result = semantic_judge.evaluate(case=case, answer=answer)
+    answer_correctness_passed = (
+        semantic_result.passed if semantic_result.evaluated else answer_passed
+    )
     failure_reasons = _build_failure_reasons(
         status_passed=status_passed,
-        answer_passed=answer_passed,
+        answer_correctness_passed=answer_correctness_passed,
         source_passed=source_passed,
         quality_passed=quality_passed,
+        semantic_evaluated=semantic_result.evaluated,
+    )
+    passed = (
+        status_passed
+        and answer_correctness_passed
+        and source_passed
+        and quality_passed
     )
 
     return EvalResult(
         case_id=case.id,
-        passed=status_passed and answer_passed and source_passed and quality_passed,
+        passed=passed,
         status_passed=status_passed,
         answer_passed=answer_passed,
+        answer_correctness_passed=answer_correctness_passed,
         source_passed=source_passed,
         quality_passed=quality_passed,
         quality_score=quality_score,
         quality_failure_reasons=quality_failure_reasons,
+        semantic_evaluated=semantic_result.evaluated,
+        semantic_passed=semantic_result.passed,
+        semantic_score=semantic_result.score,
+        semantic_threshold=semantic_result.threshold,
+        semantic_provider=semantic_result.provider,
+        semantic_rationale=semantic_result.rationale,
+        semantic_failure_reasons=semantic_result.failure_reasons,
         failure_reasons=failure_reasons,
         expected_status=case.expected_status,
         expected_answer_contains=case.expected_answer_contains,
@@ -148,12 +284,20 @@ def build_summary(results: list[EvalResult]) -> dict[str, float | int]:
     total = len(results)
     passed = sum(1 for result in results if result.passed)
     quality_passed = sum(1 for result in results if result.quality_passed)
+    semantic_results = [result for result in results if result.semantic_evaluated]
+    semantic_passed = sum(1 for result in semantic_results if result.semantic_passed)
     total_cost = sum(result.estimated_cost_usd or 0 for result in results)
     average_latency = (
         sum(result.latency_ms for result in results) / total if total else 0
     )
     average_quality_score = (
         sum(result.quality_score for result in results) / total if total else 0
+    )
+    average_semantic_score = (
+        sum(result.semantic_score or 0 for result in semantic_results)
+        / len(semantic_results)
+        if semantic_results
+        else 0
     )
     return {
         "questions_evaluated": total,
@@ -162,6 +306,9 @@ def build_summary(results: list[EvalResult]) -> dict[str, float | int]:
         "pass_rate": round(passed / total, 4) if total else 0,
         "quality_passed": quality_passed,
         "average_quality_score": round(average_quality_score, 4),
+        "semantic_evaluated": len(semantic_results),
+        "semantic_passed": semantic_passed,
+        "average_semantic_score": round(average_semantic_score, 4),
         "average_latency_ms": round(average_latency, 2),
         "estimated_cost_usd": round(total_cost, 8),
     }
@@ -176,9 +323,15 @@ def run_eval(
     document_id: str | None,
     document_manifest_path: Path | None,
     max_total_cost_usd: float,
+    semantic_judge_provider: str = "disabled",
+    semantic_threshold: float = 0.8,
 ) -> tuple[dict[str, float | int], Path, Path]:
     cases = load_dataset(dataset_path, max_questions=max_questions)
     manifest_document_ids = load_document_manifest(document_manifest_path)
+    semantic_judge = build_semantic_judge(
+        provider=semantic_judge_provider,
+        threshold=semantic_threshold,
+    )
     results = []
     total_cost = 0.0
 
@@ -200,7 +353,12 @@ def run_eval(
             )
             latency_ms = (perf_counter() - started) * 1000
             response.raise_for_status()
-            result = evaluate_response(case=case, response=response.json(), latency_ms=latency_ms)
+            result = evaluate_response(
+                case=case,
+                response=response.json(),
+                latency_ms=latency_ms,
+                semantic_judge=semantic_judge,
+            )
             results.append(result)
             total_cost += result.estimated_cost_usd or 0
             if total_cost > max_total_cost_usd:
@@ -253,8 +411,22 @@ def resolve_document_ids(
     ]
 
 
+def build_semantic_judge(
+    *,
+    provider: str,
+    threshold: float,
+) -> DisabledSemanticJudge | HeuristicSemanticJudge:
+    if provider == "disabled":
+        return DisabledSemanticJudge()
+    if provider == "heuristic":
+        if threshold <= 0 or threshold > 1:
+            raise RuntimeError("--semantic-threshold must be greater than 0 and at most 1.")
+        return HeuristicSemanticJudge(threshold=threshold)
+    raise RuntimeError(f"Unsupported semantic judge provider: {provider}")
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run deterministic RAG evals against /chat.")
+    parser = argparse.ArgumentParser(description="Run RAG evals against /chat.")
     parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument("--dataset-path", default="evals/initial_rag.jsonl")
     parser.add_argument("--report-dir", default="reports/evals")
@@ -262,6 +434,13 @@ def main() -> int:
     parser.add_argument("--document-id", default=None)
     parser.add_argument("--document-manifest-path", default=None)
     parser.add_argument("--max-total-cost-usd", type=float, default=0.05)
+    parser.add_argument(
+        "--semantic-judge",
+        choices=("disabled", "heuristic"),
+        default="disabled",
+        help="Optional local semantic answer judge. Does not call external providers.",
+    )
+    parser.add_argument("--semantic-threshold", type=float, default=0.8)
     parser.add_argument("--no-fail-on-regression", action="store_true")
     args = parser.parse_args()
 
@@ -278,6 +457,8 @@ def main() -> int:
                 else None
             ),
             max_total_cost_usd=args.max_total_cost_usd,
+            semantic_judge_provider=args.semantic_judge,
+            semantic_threshold=args.semantic_threshold,
         )
     except httpx.ConnectError:
         print(f"Could not connect to API at {args.base_url}. Start the local API and retry.")
@@ -336,10 +517,20 @@ def _result_to_dict(result: EvalResult) -> dict[str, Any]:
         "passed": result.passed,
         "status_passed": result.status_passed,
         "answer_passed": result.answer_passed,
+        "answer_correctness_passed": result.answer_correctness_passed,
         "source_passed": result.source_passed,
         "quality_passed": result.quality_passed,
         "quality_score": result.quality_score,
         "quality_failure_reasons": result.quality_failure_reasons,
+        "semantic": {
+            "evaluated": result.semantic_evaluated,
+            "passed": result.semantic_passed,
+            "score": result.semantic_score,
+            "threshold": result.semantic_threshold,
+            "provider": result.semantic_provider,
+            "rationale": result.semantic_rationale,
+            "failure_reasons": result.semantic_failure_reasons,
+        },
         "failure_reasons": result.failure_reasons,
         "expected": {
             "retrieval_status": result.expected_status,
@@ -372,6 +563,9 @@ def _build_markdown_report(summary: dict[str, float | int], results: list[EvalRe
         f"- Pass rate: {summary['pass_rate']}",
         f"- Quality passed: {summary['quality_passed']}",
         f"- Average quality score: {summary['average_quality_score']}",
+        f"- Semantic evaluated: {summary['semantic_evaluated']}",
+        f"- Semantic passed: {summary['semantic_passed']}",
+        f"- Average semantic score: {summary['average_semantic_score']}",
         f"- Average latency ms: {summary['average_latency_ms']}",
         f"- Estimated cost USD: {summary['estimated_cost_usd']}",
         "",
@@ -385,10 +579,15 @@ def _build_markdown_report(summary: dict[str, float | int], results: list[EvalRe
                 f"### {result.case_id}: {status}",
                 "",
                 f"- Status check: {result.status_passed}",
-                f"- Answer check: {result.answer_passed}",
+                f"- Deterministic answer check: {result.answer_passed}",
+                f"- Answer correctness check: {result.answer_correctness_passed}",
                 f"- Source check: {result.source_passed}",
                 f"- Quality check: {result.quality_passed}",
                 f"- Quality score: {result.quality_score}",
+                f"- Semantic judge: {result.semantic_provider}",
+                f"- Semantic evaluated: {result.semantic_evaluated}",
+                f"- Semantic check: {result.semantic_passed}",
+                f"- Semantic score: {result.semantic_score}",
                 f"- Latency ms: {round(result.latency_ms, 2)}",
                 f"- Estimated cost USD: {result.estimated_cost_usd}",
                 "",
@@ -405,6 +604,9 @@ def _build_markdown_report(summary: dict[str, float | int], results: list[EvalRe
                     f"- Forbidden answer contains: {result.forbidden_answer_contains}",
                     f"- Max answer chars: {result.max_answer_chars}",
                     f"- Quality failure reasons: {result.quality_failure_reasons}",
+                    f"- Semantic threshold: {result.semantic_threshold}",
+                    f"- Semantic rationale: {result.semantic_rationale}",
+                    f"- Semantic failure reasons: {result.semantic_failure_reasons}",
                     f"- Actual answer: {result.actual_answer}",
                     f"- Expected source titles: {result.expected_source_titles}",
                     f"- Actual source titles: {result.actual_source_titles}",
@@ -417,15 +619,16 @@ def _build_markdown_report(summary: dict[str, float | int], results: list[EvalRe
 def _build_failure_reasons(
     *,
     status_passed: bool,
-    answer_passed: bool,
+    answer_correctness_passed: bool,
     source_passed: bool,
     quality_passed: bool,
+    semantic_evaluated: bool,
 ) -> list[str]:
     reasons = []
     if not status_passed:
         reasons.append("retrieval_status")
-    if not answer_passed:
-        reasons.append("answer")
+    if not answer_correctness_passed:
+        reasons.append("semantic" if semantic_evaluated else "answer")
     if not source_passed:
         reasons.append("sources")
     if not quality_passed:
@@ -471,6 +674,34 @@ def _fallback_quality_passed(
     if expected_status == "generated":
         return fallback_answer not in normalized_answer
     return True
+
+
+def _semantic_fact_groups(case: EvalCase) -> list[list[str]]:
+    fact_groups = [[expected] for expected in case.expected_answer_contains]
+    fact_groups.extend(case.expected_answer_contains_any)
+    return fact_groups
+
+
+def _semantic_overlap_score(*, variant: str, answer: str) -> float:
+    normalized_variant = _normalize_answer_text(variant)
+    normalized_answer = _normalize_answer_text(answer)
+    if normalized_variant and normalized_variant in normalized_answer:
+        return 1.0
+
+    variant_tokens = set(_semantic_tokens(variant))
+    if not variant_tokens:
+        return 0.0
+
+    answer_tokens = set(_semantic_tokens(answer))
+    return len(variant_tokens & answer_tokens) / len(variant_tokens)
+
+
+def _semantic_tokens(value: str) -> list[str]:
+    return [
+        token
+        for token in _normalize_answer_text(value).split()
+        if token not in SEMANTIC_STOPWORDS
+    ]
 
 
 def _normalize_answer_text(value: str) -> str:

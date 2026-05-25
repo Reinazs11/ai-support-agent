@@ -3,9 +3,9 @@
 ## Initial Dataset
 
 The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 30
-deterministic checks against the synthetic and FTC public-source files in
-`evals/corpus/` so the runner can be validated cheaply before adding optional
-LLM-as-judge or Ragas-style evaluation later.
+checks against the synthetic and FTC public-source files in `evals/corpus/` so
+the runner can be validated cheaply before adding optional LLM-as-judge or
+Ragas-style evaluation later.
 
 The corpus also includes FTC public-source snapshots generated from
 `evals/external_corpus_sources.json`. Refresh them with:
@@ -41,12 +41,24 @@ fallback responses use the canonical fallback when expected, generated answers
 do not use the fallback, optional forbidden terms are absent, and optional
 answer length limits are respected.
 
+The runner can also enable a local semantic heuristic judge with
+`--semantic-judge heuristic`. This judge does not call an external provider. It
+scores expected answer fact groups by normalized token overlap against the
+generated answer and reports semantic pass/fail, score, threshold, rationale,
+and failure reasons. When enabled and applicable to a generated-answer case,
+semantic pass/fail becomes the answer-correctness gate, while the deterministic
+substring answer check remains visible in reports for debugging. Retrieval
+status, source titles, fallback behavior, forbidden terms, and length limits
+remain deterministic contract checks because they are objective and cheaper to
+debug.
+
 ## Metrics
 
 - Expected information present in answer.
 - Correct source retrieved.
 - Fallback when context is insufficient.
 - Deterministic answer quality score.
+- Optional semantic answer score.
 - Average latency.
 - Average cost.
 - Error rate.
@@ -57,13 +69,17 @@ answer length limits are respected.
 2. Save generated answers and sources.
 3. Produce a Markdown report.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
-5. Add LLM-as-judge or Ragas only after deterministic regressions are stable.
+5. Enable the local semantic heuristic when answer phrasing needs a softer
+   correctness signal.
+6. Add LLM-as-judge or Ragas only after deterministic and local semantic
+   regressions are stable.
 
 Current runner:
 
 ```powershell
 .\scripts\dev.ps1 seed-eval
 .\scripts\dev.ps1 eval
+.\scripts\dev.ps1 eval -SemanticJudge heuristic
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then
@@ -73,4 +89,5 @@ source documents, writes JSON and Markdown reports to `reports/evals/`, and
 fails by default when deterministic checks do not pass. If the API is not
 running, it exits with a short connection message instead of a stack trace.
 Failed cases include failure reasons plus expected and actual status, answer
-checks, quality checks, and source titles in the generated reports.
+checks, quality checks, semantic judge details, and source titles in the
+generated reports.

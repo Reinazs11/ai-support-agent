@@ -59,18 +59,23 @@ deeper provider retry behavior remain pending.
 - Report answer correctness, correct source retrieval, fallback quality, cost, and latency.
 
 Status: implemented. A 30-case JSONL dataset, synthetic eval corpus, public FTC
-corpus snapshots, corpus seed script, and deterministic CLI runner are in place.
-The runner calls the real `/chat` endpoint, checks expected answer substrings or
-accepted variants, retrieval status, source titles, latency, and cost, then
-writes JSON and Markdown reports with failure diagnostics for expected vs.
-actual status, answer checks, and source titles. The English-only 30-case
-dataset was calibrated with a local live run on 2026-05-24 and passed 30/30.
-Deterministic answer checks now use normalized substring matching to reduce
-punctuation, apostrophe, hyphen, whitespace, and casing false negatives. The
-runner also reports deterministic answer-quality checks for canonical fallback
-behavior, forbidden terms, and optional answer length limits. Future
-LLM-as-judge or Ragas-style evaluation can be added after deterministic
-regressions are stable.
+corpus snapshots, corpus seed script, and CLI runner are in place. The runner
+calls the real `/chat` endpoint, checks expected answer substrings or accepted
+variants, retrieval status, source titles, latency, and cost, then writes JSON
+and Markdown reports with failure diagnostics for expected vs. actual status,
+answer checks, and source titles. The English-only 30-case dataset was
+calibrated with a local live run on 2026-05-24 and passed 30/30. Deterministic
+answer checks now use normalized substring matching to reduce punctuation,
+apostrophe, hyphen, whitespace, and casing false negatives. The runner also
+reports deterministic answer-quality checks for canonical fallback behavior,
+forbidden terms, and optional answer length limits. An optional local semantic
+heuristic judge can be enabled for softer answer-fact scoring without calling an
+external provider; when enabled, it replaces deterministic substring matching as
+the answer-correctness gate for generated-answer cases while keeping substring
+results in reports for debugging. Retrieval status, source titles, fallback
+behavior, forbidden terms, and length limits remain deterministic gates. Future
+LLM-as-judge or Ragas-style evaluation can be added after deterministic and
+local semantic regressions are stable.
 
 ## Phase 6: Agent And Workflows
 

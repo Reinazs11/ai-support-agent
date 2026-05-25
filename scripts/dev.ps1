@@ -19,7 +19,10 @@ param(
     [string]$BaseUrl = "http://localhost:8000",
     [double]$SmokeMaxCostUsd = 0.005,
     [double]$EvalMaxCostUsd = 0.05,
-    [string]$EvalManifestPath = "reports/evals/eval-corpus-manifest.json"
+    [string]$EvalManifestPath = "reports/evals/eval-corpus-manifest.json",
+    [ValidateSet("disabled", "heuristic")]
+    [string]$SemanticJudge = "disabled",
+    [double]$SemanticThreshold = 0.8
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,7 +63,7 @@ function Show-Help {
     Write-Host "  smoke      Run the low-cost live RAG smoke test"
     Write-Host "  download-corpus  Refresh public eval corpus snapshots"
     Write-Host "  seed-eval  Upload and ingest the eval corpus"
-    Write-Host "  eval       Run deterministic RAG evaluation"
+    Write-Host "  eval       Run RAG evaluation"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  .\scripts\dev.ps1 start"
@@ -130,7 +133,11 @@ switch ($Command) {
             "--document-manifest-path",
             $EvalManifestPath,
             "--max-total-cost-usd",
-            $EvalMaxCostUsd.ToString("G", $InvariantCulture)
+            $EvalMaxCostUsd.ToString("G", $InvariantCulture),
+            "--semantic-judge",
+            $SemanticJudge,
+            "--semantic-threshold",
+            $SemanticThreshold.ToString("G", $InvariantCulture)
         )
     }
 }
