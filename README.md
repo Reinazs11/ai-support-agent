@@ -48,8 +48,8 @@ Implemented:
 - CLI evaluation runner for deterministic `/chat` checks plus an optional local
   heuristic semantic judge.
 - Initial LangGraph workflow endpoint that routes between RAG answers and
-  deterministic ticket classification, with human-escalation actions kept
-  approval-gated.
+  deterministic ticket classification, persists internal ticket records, and
+  keeps human-escalation actions approval-gated.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -60,7 +60,7 @@ Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
 - Langfuse tracing and richer observability dashboards.
-- Ticket persistence and email draft generation inside the agent workflow.
+- Email draft generation inside the agent workflow.
 - n8n webhook workflow after API behavior is stable.
 - Deployment setup.
 

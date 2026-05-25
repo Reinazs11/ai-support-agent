@@ -1,8 +1,26 @@
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
 from app.agents.schemas import AgentRequest
 from app.agents.service import AgentWorkflowService
+from app.db.base import Base
+from app.db.models import Ticket
+from app.db.session import create_session_factory
 
 
-async def test_ticket_workflow_classifies_without_external_side_effects() -> None:
+def build_test_session() -> Session:
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session_factory = create_session_factory(engine)
+    return session_factory()
+
+
+async def test_ticket_workflow_classifies_and_simulates_save_without_session() -> None:
     response = await AgentWorkflowService().run(
         AgentRequest(
             message="I did not receive the invoice for my payment.",
@@ -15,9 +33,33 @@ async def test_ticket_workflow_classifies_without_external_side_effects() -> Non
     assert response.ticket.category == "billing"
     assert response.ticket.priority == "normal"
     assert response.ticket.should_escalate is False
+    assert response.ticket.id is not None
+    assert response.ticket.status == "open"
     assert response.human_approval_required is False
-    assert [action.name for action in response.actions] == ["classify_ticket"]
+    assert [action.name for action in response.actions] == ["classify_ticket", "save_ticket"]
     assert all(action.status == "simulated" for action in response.actions)
+
+
+async def test_ticket_workflow_persists_ticket_with_session() -> None:
+    session = build_test_session()
+
+    response = await AgentWorkflowService(session=session).run(
+        AgentRequest(
+            message="I did not receive the invoice for my payment.",
+            mode="ticket",
+        )
+    )
+
+    assert response.ticket is not None
+    assert response.ticket.id is not None
+    persisted = session.scalar(select(Ticket).where(Ticket.id == response.ticket.id))
+    assert persisted is not None
+    assert persisted.subject == "I did not receive the invoice for my payment."
+    assert persisted.category == "billing"
+    assert persisted.priority == "normal"
+    assert persisted.status == "open"
+    assert response.actions[-1].name == "save_ticket"
+    assert response.actions[-1].status == "completed"
 
 
 async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
@@ -36,6 +78,7 @@ async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
     assert response.human_approval_required is True
     assert [action.name for action in response.actions] == [
         "classify_ticket",
+        "save_ticket",
         "request_human_review",
     ]
     assert response.actions[-1].status == "human_approval_required"
