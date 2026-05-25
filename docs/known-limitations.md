@@ -21,5 +21,9 @@
   ticket records. Email drafts are deterministic local drafts and are never sent
   automatically. LLM-assisted routing and n8n webhooks are not implemented yet.
   External business actions remain simulated or human-approved.
+- The evaluation suite does not yet measure `/agent/respond` routing, action
+  sequencing, email-draft approval, or workflow side-effect boundaries. Add a
+  deterministic workflow eval baseline before connecting n8n or improving
+  routing with an LLM.
 - Authentication, authorization, rate limits, and file retention are not implemented.
 - Public deployment configuration is not complete.

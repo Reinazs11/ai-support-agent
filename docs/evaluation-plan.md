@@ -66,6 +66,8 @@ needs stronger answer-quality grading.
 - Fallback when context is insufficient.
 - Deterministic answer quality score.
 - Optional semantic answer score.
+- Agent workflow route correctness.
+- Agent workflow action correctness and approval boundaries.
 - Average latency.
 - Average cost.
 - Error rate.
@@ -78,8 +80,27 @@ needs stronger answer-quality grading.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
 5. Enable the local semantic heuristic when answer phrasing needs a softer
    low-cost correctness signal.
-6. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
+6. Add an agent workflow evaluation baseline before n8n, LLM-assisted routing,
+   or additional external integrations.
+7. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
    evaluation targets will not immediately change.
+
+## Agent Workflow Evaluation
+
+The next evaluation increment should target `/agent/respond`, not just `/chat`.
+It should stay deterministic at first and use a small JSONL dataset of workflow
+cases. Each case should assert:
+
+- expected route: `answer`, `classify_ticket`, or `human_escalation`;
+- expected ticket category and priority when a ticket is created;
+- expected action names and statuses, especially `human_approval_required`;
+- whether an email draft is expected;
+- that no external send/webhook action is marked completed automatically.
+
+This baseline should run without requiring live LLM calls. RAG answer cases can
+use disabled-provider behavior or a seeded local corpus only when explicitly
+requested. The goal is to measure workflow safety and routing before adding n8n
+or smarter routing.
 
 Current runner:
 
