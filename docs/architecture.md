@@ -37,6 +37,10 @@ tickets, and later executes controlled workflows with LangGraph.
    source IDs and scores, model names, provider error type, latency, token
    counts, and estimated cost when cost rates are configured. Tracing is still
    planned.
+8. Agent workflow logs record workflow run IDs, route, action names/statuses,
+   ticket IDs, approval-required flags, source counts, and latency. They
+   intentionally omit user message content, generated answers, retrieved
+   context, and email draft bodies.
 
 ## Key Decisions
 
@@ -57,3 +61,5 @@ tickets, and later executes controlled workflows with LangGraph.
 - Safety fallback is mandatory when there is insufficient retrieved context.
 - Agent workflows should be measured with deterministic workflow evals before
   connecting external automation such as n8n webhooks.
+- Workflow audit logs should be structured and content-minimized before adding
+  external side effects or richer tracing.

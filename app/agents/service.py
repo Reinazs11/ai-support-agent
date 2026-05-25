@@ -1,6 +1,8 @@
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
+import structlog
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,8 @@ from app.db.models import Ticket
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
 from app.tickets.classifier import classify_ticket_text
+
+logger = structlog.get_logger(__name__)
 
 TICKET_SIGNAL_TERMS = {
     "billing",
@@ -43,18 +47,36 @@ class AgentWorkflowService:
         self.workflow = self._build_workflow()
 
     async def run(self, request: AgentRequest) -> AgentResponse:
-        state = await self.workflow.ainvoke(
-            {
-                "user_message": request.message,
-                "mode": request.mode,
-                "top_k": request.top_k,
-                "document_ids": request.document_ids,
-                "customer_tier": request.customer_tier,
-                "actions": [],
-                "human_approval_required": False,
-            }
+        started = perf_counter()
+        workflow_run_id = str(uuid4())
+        initial_state = {
+            "user_message": request.message,
+            "mode": request.mode,
+            "top_k": request.top_k,
+            "document_ids": request.document_ids,
+            "customer_tier": request.customer_tier,
+            "actions": [],
+            "human_approval_required": False,
+        }
+        try:
+            state = await self.workflow.ainvoke(initial_state)
+        except Exception as exc:
+            self._log_workflow_failed(
+                request=request,
+                workflow_run_id=workflow_run_id,
+                latency_ms=(perf_counter() - started) * 1000,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        response = self._response_from_state(state)
+        self._log_workflow_completed(
+            request=request,
+            response=response,
+            workflow_run_id=workflow_run_id,
+            latency_ms=(perf_counter() - started) * 1000,
         )
-        return self._response_from_state(state)
+        return response
 
     def _build_workflow(self) -> Any:
         workflow = StateGraph(AgentState)
@@ -254,6 +276,56 @@ class AgentWorkflowService:
                 for action in state.get("actions", [])
             ],
             human_approval_required=state.get("human_approval_required", False),
+        )
+
+    def _log_workflow_completed(
+        self,
+        *,
+        request: AgentRequest,
+        response: AgentResponse,
+        workflow_run_id: str,
+        latency_ms: float,
+    ) -> None:
+        logger.info(
+            "agent_workflow_completed",
+            workflow_run_id=workflow_run_id,
+            route=response.route,
+            mode=request.mode,
+            latency_ms=round(latency_ms, 2),
+            top_k=request.top_k,
+            document_filter_count=len(request.document_ids),
+            customer_tier_present=request.customer_tier is not None,
+            human_approval_required=response.human_approval_required,
+            action_names=[action.name for action in response.actions],
+            action_statuses=[
+                {"name": action.name, "status": action.status}
+                for action in response.actions
+            ],
+            ticket_id=response.ticket.id if response.ticket is not None else None,
+            ticket_status=response.ticket.status if response.ticket is not None else None,
+            ticket_category=response.ticket.category if response.ticket is not None else None,
+            ticket_priority=response.ticket.priority if response.ticket is not None else None,
+            retrieval_status=response.retrieval_status,
+            source_count=len(response.sources),
+        )
+
+    def _log_workflow_failed(
+        self,
+        *,
+        request: AgentRequest,
+        workflow_run_id: str,
+        latency_ms: float,
+        error_type: str,
+    ) -> None:
+        logger.info(
+            "agent_workflow_failed",
+            workflow_run_id=workflow_run_id,
+            mode=request.mode,
+            latency_ms=round(latency_ms, 2),
+            top_k=request.top_k,
+            document_filter_count=len(request.document_ids),
+            customer_tier_present=request.customer_tier is not None,
+            error_type=error_type,
         )
 
 
