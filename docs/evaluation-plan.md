@@ -80,27 +80,28 @@ needs stronger answer-quality grading.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
 5. Enable the local semantic heuristic when answer phrasing needs a softer
    low-cost correctness signal.
-6. Add an agent workflow evaluation baseline before n8n, LLM-assisted routing,
-   or additional external integrations.
+6. Keep the agent workflow evaluation baseline green before n8n,
+   LLM-assisted routing, or additional external integrations.
 7. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
    evaluation targets will not immediately change.
 
 ## Agent Workflow Evaluation
 
-The next evaluation increment should target `/agent/respond`, not just `/chat`.
-It should stay deterministic at first and use a small JSONL dataset of workflow
-cases. Each case should assert:
+The initial agent workflow evaluation targets `/agent/respond`, not just
+`/chat`. It is deterministic and uses `evals/initial_agent_workflow.jsonl`.
+Each case asserts:
 
-- expected route: `answer`, `classify_ticket`, or `human_escalation`;
+- expected route: `classify_ticket` or `human_escalation`;
 - expected ticket category and priority when a ticket is created;
 - expected action names and statuses, especially `human_approval_required`;
 - whether an email draft is expected;
 - that no external send/webhook action is marked completed automatically.
 
-This baseline should run without requiring live LLM calls. RAG answer cases can
-use disabled-provider behavior or a seeded local corpus only when explicitly
-requested. The goal is to measure workflow safety and routing before adding n8n
-or smarter routing.
+This baseline runs without live LLM or embedding calls because the committed
+cases are ticket workflows only. RAG answer-mode cases can use disabled-provider
+behavior or a seeded local corpus later, but they should be added intentionally
+because they have different infrastructure and provider risks. The goal is to
+measure workflow safety and routing before adding n8n or smarter routing.
 
 Current runner:
 
@@ -108,6 +109,7 @@ Current runner:
 .\scripts\dev.ps1 seed-eval
 .\scripts\dev.ps1 eval
 .\scripts\dev.ps1 eval -SemanticJudge heuristic
+.\scripts\dev.ps1 agent-eval
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then
@@ -119,3 +121,8 @@ running, it exits with a short connection message instead of a stack trace.
 Failed cases include failure reasons plus expected and actual status, answer
 checks, quality checks, semantic judge details, and source titles in the
 generated reports.
+
+The agent eval runner calls `/agent/respond`, writes JSON and Markdown reports
+to `reports/evals/`, and fails by default when a route, ticket field, action
+status, human-approval flag, email-draft expectation, or forbidden completed
+action does not match the dataset.

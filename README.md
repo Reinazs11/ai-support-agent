@@ -47,6 +47,8 @@ Implemented:
 - Token usage and configurable cost estimates for generated chat responses.
 - CLI evaluation runner for deterministic `/chat` checks plus an optional local
   heuristic semantic judge.
+- Deterministic `/agent/respond` workflow evaluation for ticket routes, ticket
+  fields, action statuses, and human-approval boundaries.
 - Initial LangGraph workflow endpoint that routes between RAG answers and
   deterministic ticket classification, persists internal ticket records, and
   generates approval-gated email drafts.
@@ -59,7 +61,6 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Agent workflow evaluation baseline for `/agent/respond`.
 - Structured workflow audit logs.
 - Langfuse tracing and richer observability dashboards.
 - n8n webhook workflow after API behavior is stable.
@@ -201,10 +202,17 @@ This is not LLM-as-judge or Ragas. It is a local token-overlap heuristic that is
 useful for low-cost regression checks, but it can miss real semantic errors and
 can fail valid answers with different wording.
 
-The RAG eval runner does not yet evaluate agent workflow behavior. The next
-planned evaluation increment is a deterministic `/agent/respond` workflow eval
-for route selection, ticket fields, action statuses, and human-approval
-boundaries.
+Run the deterministic agent workflow evaluation against the local API:
+
+```powershell
+.\scripts\dev.ps1 agent-eval
+```
+
+The initial agent dataset lives at `evals/initial_agent_workflow.jsonl`. It is
+intentionally limited to ticket workflows so it can validate route selection,
+ticket fields, action statuses, email-draft approval, and external-action
+boundaries without live LLM or embedding calls. `/agent/respond` answer-mode RAG
+cases are not part of this baseline yet.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots

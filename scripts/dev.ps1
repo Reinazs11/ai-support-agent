@@ -12,7 +12,8 @@ param(
         "smoke",
         "download-corpus",
         "seed-eval",
-        "eval"
+        "eval",
+        "agent-eval"
     )]
     [string]$Command = "help",
 
@@ -64,12 +65,14 @@ function Show-Help {
     Write-Host "  download-corpus  Refresh public eval corpus snapshots"
     Write-Host "  seed-eval  Upload and ingest the eval corpus"
     Write-Host "  eval       Run RAG evaluation"
+    Write-Host "  agent-eval  Run deterministic agent workflow evaluation"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  .\scripts\dev.ps1 start"
     Write-Host "  .\scripts\dev.ps1 check"
     Write-Host "  .\scripts\dev.ps1 seed-eval"
     Write-Host "  .\scripts\dev.ps1 eval"
+    Write-Host "  .\scripts\dev.ps1 agent-eval"
 }
 
 switch ($Command) {
@@ -138,6 +141,14 @@ switch ($Command) {
             $SemanticJudge,
             "--semantic-threshold",
             $SemanticThreshold.ToString("G", $InvariantCulture)
+        )
+    }
+    "agent-eval" {
+        Invoke-External $Python @(
+            "-m",
+            "scripts.run_agent_eval",
+            "--base-url",
+            $BaseUrl
         )
     }
 }
