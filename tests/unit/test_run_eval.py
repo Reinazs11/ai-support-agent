@@ -2,8 +2,10 @@ import json
 from pathlib import Path
 
 from scripts.run_eval import (
+    HeuristicSemanticJudge,
     _build_markdown_report,
     _result_to_dict,
+    build_semantic_judge,
     build_summary,
     evaluate_response,
     load_dataset,
@@ -206,6 +208,9 @@ def test_build_summary_reports_pass_rate_latency_and_cost() -> None:
     assert summary["pass_rate"] == 0.5
     assert summary["quality_passed"] == 2
     assert summary["average_quality_score"] == 1
+    assert summary["semantic_evaluated"] == 0
+    assert summary["semantic_passed"] == 0
+    assert summary["average_semantic_score"] == 0
     assert summary["average_latency_ms"] == 20
     assert summary["estimated_cost_usd"] == 0.0003
 
@@ -239,8 +244,18 @@ def test_failed_result_records_expected_actual_and_reasons() -> None:
     assert payload["actual"]["retrieval_status"] == "no_results"
     assert payload["actual"]["answer"] == "No answer."
     assert payload["actual"]["source_titles"] == ["other.txt"]
+    assert payload["answer_correctness_passed"] is False
     assert payload["quality_passed"] is True
     assert payload["quality_score"] == 1
+    assert payload["semantic"] == {
+        "evaluated": False,
+        "passed": True,
+        "score": None,
+        "threshold": None,
+        "provider": "disabled",
+        "rationale": "Semantic judge disabled.",
+        "failure_reasons": [],
+    }
 
 
 def test_markdown_report_includes_failure_details() -> None:
@@ -264,6 +279,147 @@ def test_markdown_report_includes_failure_details() -> None:
     assert "- Failure reasons: answer" in markdown
     assert "- Expected answer contains: ['30 days']" in markdown
     assert "- Actual answer: No answer." in markdown
+
+
+def test_evaluate_response_runs_heuristic_semantic_judge() -> None:
+    case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[
+            ["customer may request refund within 30 days"],
+        ],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "A customer can ask for a refund in 30 days.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+        semantic_judge=HeuristicSemanticJudge(threshold=0.6),
+    )
+
+    assert result.passed is True
+    assert result.answer_passed is False
+    assert result.answer_correctness_passed is True
+    assert result.semantic_evaluated is True
+    assert result.semantic_passed is True
+    assert result.semantic_score == 0.6667
+    assert result.semantic_threshold == 0.6
+    assert result.semantic_provider == "heuristic"
+    assert result.failure_reasons == []
+
+
+def test_semantic_judge_failure_adds_reason() -> None:
+    case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[
+            ["customer may request refund within 30 days"],
+        ],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "Customers receive store credit after approval.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+        semantic_judge=HeuristicSemanticJudge(threshold=0.8),
+    )
+
+    assert result.passed is False
+    assert result.answer_passed is False
+    assert result.answer_correctness_passed is False
+    assert result.semantic_evaluated is True
+    assert result.semantic_passed is False
+    assert result.semantic_failure_reasons == ["expected_facts_below_threshold"]
+    assert result.failure_reasons == ["semantic"]
+
+
+def test_semantic_judge_skips_fallback_cases() -> None:
+    case = load_dataset_case(
+        expected_status="insufficient_context",
+        expected_answer_contains=[],
+        expected_answer_contains_any=[],
+        expected_source_titles=[],
+    )
+
+    result = evaluate_response(
+        case=case,
+        response={
+            "answer": "I do not have enough context to answer.",
+            "retrieval_status": "insufficient_context",
+            "sources": [],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=12.5,
+        semantic_judge=HeuristicSemanticJudge(threshold=0.8),
+    )
+
+    assert result.semantic_evaluated is False
+    assert result.semantic_passed is True
+    assert result.semantic_score is None
+    assert result.semantic_rationale == "Case expects fallback behavior."
+
+
+def test_build_summary_reports_semantic_metrics() -> None:
+    passing_case = load_dataset_case(
+        expected_answer_contains=[],
+        expected_answer_contains_any=[["refund within 30 days"]],
+    )
+    skipped_case = load_dataset_case(
+        expected_status="insufficient_context",
+        expected_answer_contains=[],
+        expected_answer_contains_any=[],
+        expected_source_titles=[],
+    )
+    judge = HeuristicSemanticJudge(threshold=0.8)
+    passing_result = evaluate_response(
+        case=passing_case,
+        response={
+            "answer": "A refund is available within 30 days.",
+            "retrieval_status": "generated",
+            "sources": [{"title": "policy.txt"}],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=10,
+        semantic_judge=judge,
+    )
+    skipped_result = evaluate_response(
+        case=skipped_case,
+        response={
+            "answer": "I do not have enough context to answer.",
+            "retrieval_status": "insufficient_context",
+            "sources": [],
+            "usage": {"estimated_cost_usd": 0.0001},
+        },
+        latency_ms=20,
+        semantic_judge=judge,
+    )
+
+    summary = build_summary([passing_result, skipped_result])
+
+    assert summary["semantic_evaluated"] == 1
+    assert summary["semantic_passed"] == 1
+    assert summary["average_semantic_score"] == 1
+
+
+def test_build_semantic_judge_validates_threshold() -> None:
+    judge = build_semantic_judge(provider="heuristic", threshold=0.7)
+
+    assert isinstance(judge, HeuristicSemanticJudge)
+
+    try:
+        build_semantic_judge(provider="heuristic", threshold=1.5)
+    except RuntimeError as exc:
+        assert "--semantic-threshold" in str(exc)
+    else:
+        raise AssertionError("Expected invalid semantic threshold to fail.")
 
 
 def test_load_document_manifest_maps_titles_to_document_ids(tmp_path) -> None:
