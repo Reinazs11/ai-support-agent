@@ -73,9 +73,11 @@ heuristic judge can be enabled for softer answer-fact scoring without calling an
 external provider; when enabled, it replaces deterministic substring matching as
 the answer-correctness gate for generated-answer cases while keeping substring
 results in reports for debugging. Retrieval status, source titles, fallback
-behavior, forbidden terms, and length limits remain deterministic gates. Future
-LLM-as-judge or Ragas-style evaluation can be added after deterministic and
-local semantic regressions are stable.
+behavior, forbidden terms, and length limits remain deterministic gates. This is
+not a full semantic evaluation layer: it does not provide LLM-as-judge,
+entailment checks, contradiction detection, or Ragas-style faithfulness metrics.
+Those should wait until Phase 6 workflow behavior is stable enough to evaluate
+against the right targets.
 
 ## Phase 6: Agent And Workflows
 
@@ -83,6 +85,12 @@ local semantic regressions are stable.
   escalation, ticket save, and email draft generation.
 - Keep business actions simulated or human-approved by default.
 - Add n8n webhook workflow after API behavior is stable.
+
+Status: started. The first workflow endpoint routes between direct RAG answers
+and deterministic ticket classification with LangGraph. High-priority tickets
+route to a human-escalation state, and all business actions are reported as
+simulated or human-approval-required. Ticket persistence, email draft generation,
+n8n webhooks, and LLM-assisted routing remain pending.
 
 ## Phase 7: Observability And Deploy
 

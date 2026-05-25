@@ -52,6 +52,13 @@ status, source titles, fallback behavior, forbidden terms, and length limits
 remain deterministic contract checks because they are objective and cheaper to
 debug.
 
+This heuristic judge is intentionally not described as robust semantic
+evaluation. It does not understand entailment, contradictions, partial credit
+beyond token overlap, or whether an answer is faithful to the retrieved source.
+It is useful as a free regression signal before workflow behavior changes, but
+LLM-as-judge or Ragas-style evaluation is still needed later if the project
+needs stronger answer-quality grading.
+
 ## Metrics
 
 - Expected information present in answer.
@@ -70,9 +77,9 @@ debug.
 3. Produce a Markdown report.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
 5. Enable the local semantic heuristic when answer phrasing needs a softer
-   correctness signal.
-6. Add LLM-as-judge or Ragas only after deterministic and local semantic
-   regressions are stable.
+   low-cost correctness signal.
+6. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
+   evaluation targets will not immediately change.
 
 Current runner:
 

@@ -16,7 +16,9 @@ tickets, and later executes controlled workflows with LangGraph.
 - `rag`: embedding provider selection, Qdrant indexing, retrieval, prompt
   composition, and citations.
 - `tickets`: deterministic first-pass classification and later LLM-assisted routing.
-- `agents`: LangGraph state and controlled tools after the RAG path is validated.
+- `agents`: LangGraph state and controlled tools for Phase 6 workflows. These
+  should route between RAG answers and simulated or human-approved business
+  actions before any external side effects are enabled.
 - `evals`: datasets, runners, metrics, and Markdown reports.
 - `observability`: logs, latency spans, LLM traces, cost, and retrieved-document audit.
 
