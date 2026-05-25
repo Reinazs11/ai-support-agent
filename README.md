@@ -52,6 +52,8 @@ Implemented:
 - Initial LangGraph workflow endpoint that routes between RAG answers and
   deterministic ticket classification, persists internal ticket records, and
   generates approval-gated email drafts.
+- Simulated n8n webhook workflow action for ticket notifications; it records a
+  safe payload summary and never sends an external request.
 - Structured agent workflow audit logs for workflow run IDs, route, action
   names/statuses, ticket IDs, approval flags, source counts, and latency without
   logging user message content or email bodies.
@@ -66,7 +68,8 @@ Still pending:
 - Object storage or durable file retention policy for uploaded documents.
 - Persistent workflow audit trail storage.
 - Langfuse tracing and richer observability dashboards.
-- n8n webhook workflow after API behavior is stable.
+- Real n8n webhook dispatch after approval, retry, and secret-handling rules are
+  designed.
 - Deployment setup.
 
 ## Tech Stack
@@ -214,8 +217,9 @@ Run the deterministic agent workflow evaluation against the local API:
 The initial agent dataset lives at `evals/initial_agent_workflow.jsonl`. It is
 intentionally limited to ticket workflows so it can validate route selection,
 ticket fields, action statuses, email-draft approval, and external-action
-boundaries without live LLM or embedding calls. `/agent/respond` answer-mode RAG
-cases are not part of this baseline yet.
+boundaries, including the simulated n8n webhook action, without live LLM or
+embedding calls. `/agent/respond` answer-mode RAG cases are not part of this
+baseline yet.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots

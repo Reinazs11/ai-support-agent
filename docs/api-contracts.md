@@ -118,8 +118,9 @@ Response includes category, priority, escalation flag, and rationale.
 Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
 or to deterministic ticket classification. Ticket workflows persist an internal
 ticket record and generate a local email draft, but external business actions are
-reported as simulated or human-approval-required; no email, webhook, or
-third-party side effect is performed.
+reported as simulated or human-approval-required. The current n8n webhook step
+is a local simulation only; no email, webhook, or third-party side effect is
+performed.
 
 Request:
 
@@ -182,6 +183,11 @@ Response:
       "name": "send_email",
       "status": "human_approval_required",
       "reason": "Workflow does not send external communications automatically."
+    },
+    {
+      "name": "notify_n8n_webhook",
+      "status": "simulated",
+      "reason": "n8n webhook notification simulated locally; no external request was sent."
     },
     {
       "name": "request_human_review",

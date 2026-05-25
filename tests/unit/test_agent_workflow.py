@@ -60,8 +60,11 @@ async def test_ticket_workflow_classifies_and_simulates_save_without_session() -
         "save_ticket",
         "draft_email",
         "send_email",
+        "notify_n8n_webhook",
     ]
-    assert response.actions[-1].status == "human_approval_required"
+    action_statuses = {action.name: action.status for action in response.actions}
+    assert action_statuses["send_email"] == "human_approval_required"
+    assert action_statuses["notify_n8n_webhook"] == "simulated"
 
 
 async def test_ticket_workflow_persists_ticket_with_session() -> None:
@@ -88,6 +91,8 @@ async def test_ticket_workflow_persists_ticket_with_session() -> None:
     assert response.actions[1].status == "completed"
     assert response.actions[2].name == "draft_email"
     assert response.actions[2].status == "completed"
+    assert response.actions[4].name == "notify_n8n_webhook"
+    assert response.actions[4].status == "simulated"
 
 
 async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
@@ -109,6 +114,7 @@ async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
         "save_ticket",
         "draft_email",
         "send_email",
+        "notify_n8n_webhook",
         "request_human_review",
     ]
     assert response.actions[-1].status == "human_approval_required"
@@ -139,8 +145,7 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
     )
 
     assert response.ticket is not None
-    assert len(capture.records) == 1
-    event, metadata = capture.records[0]
+    event, metadata = capture.records[-1]
     serialized_metadata = json.dumps(metadata)
     assert event == "agent_workflow_completed"
     assert metadata["route"] == "classify_ticket"
@@ -156,14 +161,27 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
         "save_ticket",
         "draft_email",
         "send_email",
+        "notify_n8n_webhook",
     ]
-    assert metadata["action_statuses"][-1] == {
-        "name": "send_email",
-        "status": "human_approval_required",
+    action_statuses = {
+        action_status["name"]: action_status["status"]
+        for action_status in metadata["action_statuses"]
     }
+    assert action_statuses["send_email"] == "human_approval_required"
+    assert action_statuses["notify_n8n_webhook"] == "simulated"
     assert "latency_ms" in metadata
     assert sensitive_message not in serialized_metadata
     assert "ABC123" not in serialized_metadata
+
+    webhook_event, webhook_metadata = capture.records[0]
+    serialized_webhook_metadata = json.dumps(webhook_metadata)
+    assert webhook_event == "agent_n8n_webhook_simulated"
+    assert webhook_metadata["action_name"] == "notify_n8n_webhook"
+    assert webhook_metadata["action_status"] == "simulated"
+    assert webhook_metadata["payload_summary"]["ticket_id"] == response.ticket.id
+    assert webhook_metadata["payload_summary"]["ticket_category"] == "billing"
+    assert sensitive_message not in serialized_webhook_metadata
+    assert "ABC123" not in serialized_webhook_metadata
 
 
 async def test_agent_workflow_failure_logs_error_type_without_message_content(

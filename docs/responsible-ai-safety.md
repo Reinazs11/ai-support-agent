@@ -9,6 +9,9 @@
 - Business actions should be simulated or require human approval until reviewed.
 - Email drafts may be generated locally, but sending must remain a separate
   human-approved action.
+- Webhook notifications may be simulated locally, but outbound webhook dispatch
+  must remain disabled until approval, retry, timeout, and secret-handling rules
+  are designed.
 
 ## Data Handling
 
@@ -32,4 +35,4 @@ Escalate when:
 
 Before connecting external workflow tools, evaluate that agent workflows choose
 the expected route, create the expected internal actions, and keep send/webhook
-steps marked as human-approval-required.
+steps marked as simulated or human-approval-required.

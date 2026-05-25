@@ -100,8 +100,10 @@ Each case asserts:
 This baseline runs without live LLM or embedding calls because the committed
 cases are ticket workflows only. RAG answer-mode cases can use disabled-provider
 behavior or a seeded local corpus later, but they should be added intentionally
-because they have different infrastructure and provider risks. The goal is to
-measure workflow safety and routing before adding n8n or smarter routing.
+because they have different infrastructure and provider risks. The simulated
+n8n webhook action is included in the dataset and must stay `simulated`, not
+`completed`. The goal is to measure workflow safety and routing before adding a
+real webhook dispatch or smarter routing.
 
 Current runner:
 

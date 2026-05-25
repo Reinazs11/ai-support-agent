@@ -92,6 +92,11 @@ def test_agent_ticket_contract_persists_ticket_and_keeps_external_actions_contro
             "reason": "Workflow does not send external communications automatically.",
         },
         {
+            "name": "notify_n8n_webhook",
+            "status": "simulated",
+            "reason": "n8n webhook notification simulated locally; no external request was sent.",
+        },
+        {
             "name": "request_human_review",
             "status": "human_approval_required",
             "reason": "High-priority ticket workflow requires human review.",
