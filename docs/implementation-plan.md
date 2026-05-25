@@ -89,9 +89,9 @@ against the right targets.
 Status: started. The first workflow endpoint routes between direct RAG answers
 and deterministic ticket classification with LangGraph. High-priority tickets
 route to a human-escalation state, and ticket workflows now persist an internal
-ticket record in PostgreSQL. External business actions are still reported as
-simulated or human-approval-required. Email draft generation, n8n webhooks, and
-LLM-assisted routing remain pending.
+ticket record in PostgreSQL. Ticket workflows also generate local email drafts,
+but sending remains human-approval-required and no external communication is
+sent automatically. n8n webhooks and LLM-assisted routing remain pending.
 
 ## Phase 7: Observability And Deploy
 

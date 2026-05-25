@@ -35,9 +35,17 @@ async def test_ticket_workflow_classifies_and_simulates_save_without_session() -
     assert response.ticket.should_escalate is False
     assert response.ticket.id is not None
     assert response.ticket.status == "open"
-    assert response.human_approval_required is False
-    assert [action.name for action in response.actions] == ["classify_ticket", "save_ticket"]
-    assert all(action.status == "simulated" for action in response.actions)
+    assert response.email_draft is not None
+    assert response.email_draft.requires_approval is True
+    assert response.email_draft.subject == "Re: I did not receive the invoice for my payment."
+    assert response.human_approval_required is True
+    assert [action.name for action in response.actions] == [
+        "classify_ticket",
+        "save_ticket",
+        "draft_email",
+        "send_email",
+    ]
+    assert response.actions[-1].status == "human_approval_required"
 
 
 async def test_ticket_workflow_persists_ticket_with_session() -> None:
@@ -58,8 +66,12 @@ async def test_ticket_workflow_persists_ticket_with_session() -> None:
     assert persisted.category == "billing"
     assert persisted.priority == "normal"
     assert persisted.status == "open"
-    assert response.actions[-1].name == "save_ticket"
-    assert response.actions[-1].status == "completed"
+    assert response.email_draft is not None
+    assert f"Ticket ID: {response.ticket.id}" in response.email_draft.body
+    assert response.actions[1].name == "save_ticket"
+    assert response.actions[1].status == "completed"
+    assert response.actions[2].name == "draft_email"
+    assert response.actions[2].status == "completed"
 
 
 async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
@@ -79,9 +91,13 @@ async def test_ticket_workflow_routes_high_priority_to_human_review() -> None:
     assert [action.name for action in response.actions] == [
         "classify_ticket",
         "save_ticket",
+        "draft_email",
+        "send_email",
         "request_human_review",
     ]
     assert response.actions[-1].status == "human_approval_required"
+    assert response.email_draft is not None
+    assert "escalated this to a human support specialist" in response.email_draft.body
 
 
 async def test_auto_mode_routes_ticket_signals_to_ticket_workflow() -> None:
@@ -92,3 +108,4 @@ async def test_auto_mode_routes_ticket_signals_to_ticket_workflow() -> None:
     assert response.route == "classify_ticket"
     assert response.ticket is not None
     assert response.ticket.category == "technical_support"
+    assert response.email_draft is not None

@@ -4,7 +4,13 @@ from uuid import uuid4
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
-from app.agents.schemas import AgentAction, AgentRequest, AgentResponse, AgentTicketResult
+from app.agents.schemas import (
+    AgentAction,
+    AgentEmailDraft,
+    AgentRequest,
+    AgentResponse,
+    AgentTicketResult,
+)
 from app.agents.state import AgentState
 from app.db.models import Ticket
 from app.rag.schemas import ChatRequest
@@ -56,6 +62,7 @@ class AgentWorkflowService:
         workflow.add_node("answer", self._answer)
         workflow.add_node("classify_ticket", self._classify_ticket)
         workflow.add_node("save_ticket", self._save_ticket)
+        workflow.add_node("draft_email", self._draft_email)
         workflow.add_node("human_escalation", self._human_escalation)
 
         workflow.set_entry_point("route_request")
@@ -69,9 +76,10 @@ class AgentWorkflowService:
         )
         workflow.add_edge("answer", END)
         workflow.add_edge("classify_ticket", "save_ticket")
+        workflow.add_edge("save_ticket", "draft_email")
         workflow.add_conditional_edges(
-            "save_ticket",
-            self._next_after_ticket_save,
+            "draft_email",
+            self._next_after_email_draft,
             {
                 "human_escalation": "human_escalation",
                 "complete": END,
@@ -153,12 +161,39 @@ class AgentWorkflowService:
             }
         )
         return {
-            "route": "human_escalation"
-            if state["ticket_should_escalate"]
-            else "classify_ticket",
+            "route": "draft_email",
             "ticket_id": ticket.id,
             "ticket_status": ticket.status,
             "actions": actions,
+        }
+
+    def _draft_email(self, state: AgentState) -> dict[str, object]:
+        email_subject = _email_subject_from_ticket(state["ticket_subject"])
+        email_body = _email_body_from_ticket(state)
+        actions = list(state.get("actions", []))
+        actions.extend(
+            [
+                {
+                    "name": "draft_email",
+                    "status": "completed",
+                    "reason": "Email draft generated locally from ticket context.",
+                },
+                {
+                    "name": "send_email",
+                    "status": "human_approval_required",
+                    "reason": "Workflow does not send external communications automatically.",
+                },
+            ]
+        )
+        return {
+            "route": "human_escalation"
+            if state["ticket_should_escalate"]
+            else "classify_ticket",
+            "email_subject": email_subject,
+            "email_body": email_body,
+            "email_requires_approval": True,
+            "actions": actions,
+            "human_approval_required": True,
         }
 
     def _human_escalation(self, state: AgentState) -> dict[str, object]:
@@ -176,7 +211,7 @@ class AgentWorkflowService:
             "human_approval_required": True,
         }
 
-    def _next_after_ticket_save(self, state: AgentState) -> str:
+    def _next_after_email_draft(self, state: AgentState) -> str:
         if state.get("ticket_should_escalate"):
             return "human_escalation"
         return "complete"
@@ -193,6 +228,14 @@ class AgentWorkflowService:
                 rationale=state["ticket_rationale"],
             )
 
+        email_draft = None
+        if "email_subject" in state:
+            email_draft = AgentEmailDraft(
+                subject=state["email_subject"],
+                body=state["email_body"],
+                requires_approval=state["email_requires_approval"],
+            )
+
         return AgentResponse(
             route=state["route"],
             answer=state.get("answer"),
@@ -201,6 +244,7 @@ class AgentWorkflowService:
             sources=state.get("sources", []),
             usage=state.get("usage"),
             ticket=ticket,
+            email_draft=email_draft,
             actions=[
                 AgentAction(
                     name=action["name"],
@@ -221,3 +265,27 @@ def _looks_like_ticket(message: str) -> bool:
 def _ticket_subject_from_message(message: str) -> str:
     first_line = message.strip().splitlines()[0]
     return first_line[:120] or "Support request"
+
+
+def _email_subject_from_ticket(ticket_subject: str) -> str:
+    return f"Re: {ticket_subject}"[:160]
+
+
+def _email_body_from_ticket(state: AgentState) -> str:
+    priority_sentence = (
+        "I have escalated this to a human support specialist for review."
+        if state["ticket_should_escalate"]
+        else "I have routed this to the support team for follow-up."
+    )
+    return (
+        "Hi,\n\n"
+        "Thanks for contacting support. "
+        f"We received your request about: {state['ticket_subject']}.\n\n"
+        f"Ticket ID: {state['ticket_id']}\n"
+        f"Category: {state['ticket_category']}\n"
+        f"Priority: {state['ticket_priority']}\n\n"
+        f"{priority_sentence}\n\n"
+        "A support teammate should review this draft before it is sent.\n\n"
+        "Regards,\n"
+        "Support Team"
+    )

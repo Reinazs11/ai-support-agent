@@ -66,6 +66,9 @@ def test_agent_ticket_contract_persists_ticket_and_keeps_external_actions_contro
     assert body["ticket"]["category"] == "technical_support"
     assert body["ticket"]["priority"] == "high"
     assert body["ticket"]["should_escalate"] is True
+    assert body["email_draft"]["subject"] == "Re: The production API is down and this is critical."
+    assert body["email_draft"]["requires_approval"] is True
+    assert f"Ticket ID: {body['ticket']['id']}" in body["email_draft"]["body"]
     assert body["human_approval_required"] is True
     assert body["actions"] == [
         {
@@ -77,6 +80,16 @@ def test_agent_ticket_contract_persists_ticket_and_keeps_external_actions_contro
             "name": "save_ticket",
             "status": "completed",
             "reason": "Ticket persisted to local metadata storage.",
+        },
+        {
+            "name": "draft_email",
+            "status": "completed",
+            "reason": "Email draft generated locally from ticket context.",
+        },
+        {
+            "name": "send_email",
+            "status": "human_approval_required",
+            "reason": "Workflow does not send external communications automatically.",
         },
         {
             "name": "request_human_review",

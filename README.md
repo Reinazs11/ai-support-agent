@@ -49,7 +49,7 @@ Implemented:
   heuristic semantic judge.
 - Initial LangGraph workflow endpoint that routes between RAG answers and
   deterministic ticket classification, persists internal ticket records, and
-  keeps human-escalation actions approval-gated.
+  generates approval-gated email drafts.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -60,7 +60,6 @@ Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
 - Langfuse tracing and richer observability dashboards.
-- Email draft generation inside the agent workflow.
 - n8n webhook workflow after API behavior is stable.
 - Deployment setup.
 

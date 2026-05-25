@@ -117,9 +117,9 @@ Response includes category, priority, escalation flag, and rationale.
 
 Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
 or to deterministic ticket classification. Ticket workflows persist an internal
-ticket record, but external business actions are reported as simulated or
-human-approval-required; no email, webhook, or third-party side effect is
-performed.
+ticket record and generate a local email draft, but external business actions are
+reported as simulated or human-approval-required; no email, webhook, or
+third-party side effect is performed.
 
 Request:
 
@@ -157,6 +157,11 @@ Response:
     "should_escalate": true,
     "rationale": "Initial deterministic classifier; replace with evaluated LLM flow later."
   },
+  "email_draft": {
+    "subject": "Re: The production API is down and this is critical.",
+    "body": "Hi,\n\nThanks for contacting support. ...",
+    "requires_approval": true
+  },
   "actions": [
     {
       "name": "classify_ticket",
@@ -167,6 +172,16 @@ Response:
       "name": "save_ticket",
       "status": "completed",
       "reason": "Ticket persisted to local metadata storage."
+    },
+    {
+      "name": "draft_email",
+      "status": "completed",
+      "reason": "Email draft generated locally from ticket context."
+    },
+    {
+      "name": "send_email",
+      "status": "human_approval_required",
+      "reason": "Workflow does not send external communications automatically."
     },
     {
       "name": "request_human_review",

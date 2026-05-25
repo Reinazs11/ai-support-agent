@@ -7,7 +7,7 @@ class AgentState(TypedDict, total=False):
     top_k: int | None
     document_ids: list[str]
     customer_tier: str | None
-    route: Literal["answer", "classify_ticket", "save_ticket", "human_escalation"]
+    route: Literal["answer", "classify_ticket", "save_ticket", "draft_email", "human_escalation"]
     answer: str
     confidence: str
     retrieval_status: str
@@ -21,5 +21,8 @@ class AgentState(TypedDict, total=False):
     ticket_body: str
     ticket_id: str
     ticket_status: str
+    email_subject: str
+    email_body: str
+    email_requires_approval: bool
     actions: list[dict[str, str]]
     human_approval_required: bool
