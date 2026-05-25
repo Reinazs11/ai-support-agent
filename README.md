@@ -52,6 +52,9 @@ Implemented:
 - Initial LangGraph workflow endpoint that routes between RAG answers and
   deterministic ticket classification, persists internal ticket records, and
   generates approval-gated email drafts.
+- Structured agent workflow audit logs for workflow run IDs, route, action
+  names/statuses, ticket IDs, approval flags, source counts, and latency without
+  logging user message content or email bodies.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -61,7 +64,7 @@ Implemented:
 Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
-- Structured workflow audit logs.
+- Persistent workflow audit trail storage.
 - Langfuse tracing and richer observability dashboards.
 - n8n webhook workflow after API behavior is stable.
 - Deployment setup.
