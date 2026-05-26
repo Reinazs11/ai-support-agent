@@ -9,9 +9,9 @@
 - Business actions should be simulated or require human approval until reviewed.
 - Email drafts may be generated locally, but sending must remain a separate
   human-approved action.
-- Webhook notifications may be simulated locally, but outbound webhook dispatch
-  must remain disabled until approval, retry, timeout, and secret-handling rules
-  are designed.
+- Webhook notifications should remain simulated by default. Live outbound
+  webhook dispatch is allowed only when the operator explicitly configures live
+  mode, a webhook URL, and disables the human-approval blocker for that run.
 - Webhook dispatch logs should expose only safe policy metadata, including
   boolean URL presence and explicit dispatch blockers, not the webhook URL or
   request body.

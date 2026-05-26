@@ -80,8 +80,8 @@ needs stronger answer-quality grading.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
 5. Enable the local semantic heuristic when answer phrasing needs a softer
    low-cost correctness signal.
-6. Keep the agent workflow evaluation baseline green before n8n,
-   LLM-assisted routing, or additional external integrations.
+6. Keep the agent workflow evaluation baseline green before LLM-assisted
+   routing or additional external integrations.
 7. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
    evaluation targets will not immediately change.
 
@@ -108,9 +108,10 @@ controlled seeded corpus, so it does not accidentally spend provider tokens.
 uses the eval corpus manifest to filter each case to its expected source
 documents. It should run after `seed-eval`, with the same caution as RAG evals:
 the local API configuration determines whether providers are called.
-The simulated n8n webhook action is included in the ticket dataset and must stay
-`simulated`, not `completed`. The goal is to measure workflow safety and routing
-before adding a real webhook dispatch or smarter routing.
+The default ticket dataset assumes `N8N_WEBHOOK_MODE=simulated`. In that mode,
+the n8n webhook action must stay `simulated`, not `completed`. Do not run the
+default agent eval with `N8N_WEBHOOK_MODE=live` unless the goal is a controlled
+side-effect test against a real n8n webhook.
 
 Current runner:
 

@@ -24,7 +24,7 @@ class AgentTicketResult(BaseModel):
 
 class AgentAction(BaseModel):
     name: str
-    status: Literal["completed", "simulated", "human_approval_required"]
+    status: Literal["completed", "simulated", "human_approval_required", "failed"]
     reason: str
 
 

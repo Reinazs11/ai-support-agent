@@ -117,15 +117,16 @@ Response includes category, priority, escalation flag, and rationale.
 
 Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
 or to deterministic ticket classification. Ticket workflows persist an internal
-ticket record and generate a local email draft, but external business actions are
-reported as simulated or human-approval-required. The current n8n webhook step
-is a local simulation only; no email, webhook, or third-party side effect is
-performed.
+ticket record and generate a local email draft. Email sending remains
+human-approval-required. n8n webhook notification defaults to simulation, but it
+can perform a real outbound POST when live mode is explicitly configured.
 
 The n8n boundary exposes configuration for mode, URL presence, timeout, retries,
 human-approval requirement, and network-dispatch blockers in structured logs.
-Current supported modes are `simulated` and `disabled`; there is intentionally no
-live outbound mode yet.
+Supported modes are `simulated`, `disabled`, and `live`. Live mode only
+dispatches when a webhook URL is configured and
+`N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=false`. Webhook URLs, request bodies,
+response bodies, user messages, and email draft bodies are not logged.
 
 Request:
 
@@ -203,6 +204,13 @@ Response:
   "human_approval_required": true
 }
 ```
+
+In live mode, `notify_n8n_webhook` can return:
+
+- `completed`: a POST to the configured n8n webhook returned a 2xx status.
+- `failed`: the webhook returned a non-2xx status or all retry attempts failed.
+- `human_approval_required`: live dispatch was blocked because human approval is
+  still required.
 
 ## POST /evals/run
 

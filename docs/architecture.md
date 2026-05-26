@@ -18,9 +18,10 @@ tickets, and later executes controlled workflows with LangGraph.
 - `tickets`: deterministic first-pass classification and later LLM-assisted routing.
 - `agents`: LangGraph state and controlled tools for Phase 6 workflows. These
   route between RAG answers, ticket classification, internal ticket persistence,
-  local email drafts, simulated n8n webhook notifications, and human-approved
-  business actions. External side effects remain disabled until approval,
-  retry, and secret-handling rules are designed.
+  local email drafts, n8n webhook notifications, and human-approved business
+  actions. n8n defaults to simulated mode and only dispatches live when an
+  operator explicitly enables live mode, configures a webhook URL, and disables
+  the human-approval blocker.
 - `evals`: datasets, runners, metrics, and Markdown reports.
 - `observability`: logs, latency spans, LLM traces, cost, and retrieved-document audit.
 
@@ -61,8 +62,9 @@ tickets, and later executes controlled workflows with LangGraph.
   so the project can stay accurate as provider prices change.
 - Safety fallback is mandatory when there is insufficient retrieved context.
 - Agent workflows should be measured with deterministic workflow evals before
-  connecting external automation such as n8n webhooks.
+  enabling live external automation such as n8n webhooks.
 - Workflow audit logs should be structured and content-minimized before adding
   external side effects or richer tracing.
-- n8n integration starts as a simulated action with a safe payload summary so
-  the workflow contract can be evaluated before any outbound webhook is enabled.
+- n8n integration defaults to a simulated action with a safe payload summary.
+  Live dispatch uses the same minimized payload, timeout, retry settings, and
+  content-minimized logs without recording the webhook URL or response body.
