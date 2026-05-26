@@ -100,15 +100,15 @@ explicit in settings: supported modes are `simulated` and `disabled`, URL
 presence is logged only as a boolean, timeout/retry values are reserved, and
 human approval remains required by default. The agent eval runner can also
 validate answer-mode disabled-provider behavior through
-`evals/agent_answer_disabled.jsonl`, but that optional dataset should be run only
-when the local API configuration is known not to call live providers unless
+`evals/agent_answer_disabled.jsonl` and seeded-corpus answer behavior through
+`evals/agent_answer_seeded.jsonl`, but optional answer datasets should be run
+only when the local API configuration is known not to call live providers unless
 explicitly desired.
 
 Recommended next increments:
 
-1. Add seeded-corpus answer-mode agent eval cases after deciding whether they
-   should run with disabled provider, fake service, or explicitly approved live
-   providers.
+1. Run a controlled live agent eval after the API is started with the intended
+   local RAG configuration and eval corpus manifest.
 2. Add a real n8n dispatch implementation only after explicit approval,
    including the HTTP client, secret handling, retry/timeout behavior, and live
    integration test plan.

@@ -21,6 +21,8 @@ param(
     [double]$SmokeMaxCostUsd = 0.005,
     [double]$EvalMaxCostUsd = 0.05,
     [string]$EvalManifestPath = "reports/evals/eval-corpus-manifest.json",
+    [string]$AgentEvalDatasetPath = "evals/initial_agent_workflow.jsonl",
+    [string]$AgentEvalManifestPath = "",
     [ValidateSet("disabled", "heuristic")]
     [string]$SemanticJudge = "disabled",
     [double]$SemanticThreshold = 0.8
@@ -73,6 +75,7 @@ function Show-Help {
     Write-Host "  .\scripts\dev.ps1 seed-eval"
     Write-Host "  .\scripts\dev.ps1 eval"
     Write-Host "  .\scripts\dev.ps1 agent-eval"
+    Write-Host "  .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json"
 }
 
 switch ($Command) {
@@ -144,11 +147,17 @@ switch ($Command) {
         )
     }
     "agent-eval" {
-        Invoke-External $Python @(
+        $agentEvalArgs = @(
             "-m",
             "scripts.run_agent_eval",
             "--base-url",
-            $BaseUrl
+            $BaseUrl,
+            "--dataset-path",
+            $AgentEvalDatasetPath
         )
+        if ($AgentEvalManifestPath) {
+            $agentEvalArgs += @("--document-manifest-path", $AgentEvalManifestPath)
+        }
+        Invoke-External $Python $agentEvalArgs
     }
 }

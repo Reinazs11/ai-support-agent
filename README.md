@@ -238,12 +238,23 @@ of this default ticket baseline.
 There is also an optional answer-path dataset for disabled-provider runs:
 
 ```powershell
-python -m scripts.run_agent_eval --dataset-path evals/agent_answer_disabled.jsonl
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_disabled.jsonl
 ```
 
 Run it only when the local API is intentionally started without vector search or
 with a controlled seeded corpus. It is meant to validate `/agent/respond` answer
 contracts without accidentally spending provider tokens.
+
+After seeding the eval corpus, the agent answer path can also be checked against
+known source documents:
+
+```powershell
+.\scripts\dev.ps1 seed-eval
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json
+```
+
+This still should be treated as a controlled eval run because it uses the local
+RAG configuration behind `/agent/respond`.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots
