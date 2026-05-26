@@ -113,6 +113,16 @@ the n8n webhook action must stay `simulated`, not `completed`. Do not run the
 default agent eval with `N8N_WEBHOOK_MODE=live` unless the goal is a controlled
 side-effect test against a real n8n webhook.
 
+For a single controlled live n8n check, use:
+
+```powershell
+.\scripts\dev.ps1 n8n-smoke
+```
+
+The command checks `/health` first and refuses to run unless n8n is fully
+`live`. It sends one ticket-mode `/agent/respond` request and expects
+`notify_n8n_webhook` to complete.
+
 Current runner:
 
 ```powershell
@@ -120,6 +130,7 @@ Current runner:
 .\scripts\dev.ps1 eval
 .\scripts\dev.ps1 eval -SemanticJudge heuristic
 .\scripts\dev.ps1 agent-eval
+.\scripts\dev.ps1 n8n-smoke
 .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_disabled.jsonl
 .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json
 ```

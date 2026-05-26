@@ -193,6 +193,9 @@ Check the health endpoint:
 Invoke-RestMethod http://localhost:8000/health
 ```
 
+The `dependencies.n8n` value reports whether n8n dispatch is `simulated`,
+`disabled`, fully `live`, or blocked by missing URL or required human approval.
+
 Check OpenAI configuration without printing secrets:
 
 ```powershell
@@ -215,6 +218,17 @@ Run the lowest-cost live RAG smoke test against the local API:
 The smoke test uploads a tiny `.txt` document, indexes one small embedding batch,
 asks one short question with `top_k=1`, and fails if the returned cost estimate
 exceeds the configured limit.
+
+Run the controlled live n8n smoke test only when you intentionally want one
+external webhook dispatch:
+
+```powershell
+.\scripts\dev.ps1 n8n-smoke
+```
+
+This command first checks `/health` and refuses to run unless n8n is fully
+`live`. It forces `/agent/respond` into ticket mode, so it does not call OpenAI.
+After the test, set `N8N_WEBHOOK_MODE=simulated` again for normal local work.
 
 Run the initial deterministic RAG evaluation against the local API:
 

@@ -7,6 +7,15 @@ without the prefix for convenience.
 
 Returns service status and dependency configuration state.
 
+The `dependencies.n8n` value is one of:
+
+- `simulated`: n8n dispatch is configured for no-side-effect simulation.
+- `disabled`: n8n notification is disabled.
+- `live`: live webhook dispatch is enabled and unblocked.
+- `missing_webhook_url`: live mode is selected but no webhook URL is configured.
+- `human_approval_required`: live mode is selected but human approval still
+  blocks dispatch.
+
 ## POST /documents
 
 Accepts multipart upload under field `file`.
