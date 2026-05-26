@@ -123,8 +123,9 @@ is a local simulation only; no email, webhook, or third-party side effect is
 performed.
 
 The n8n boundary exposes configuration for mode, URL presence, timeout, retries,
-and human-approval requirement. Current supported modes are `simulated` and
-`disabled`; there is intentionally no live outbound mode yet.
+human-approval requirement, and network-dispatch blockers in structured logs.
+Current supported modes are `simulated` and `disabled`; there is intentionally no
+live outbound mode yet.
 
 Request:
 

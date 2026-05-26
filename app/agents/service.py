@@ -253,6 +253,12 @@ class AgentWorkflowService:
                 "timeout_seconds": dispatch.dispatch_policy.timeout_seconds,
                 "max_retries": dispatch.dispatch_policy.max_retries,
                 "requires_human_approval": dispatch.dispatch_policy.requires_human_approval,
+                "network_dispatch_allowed": (
+                    dispatch.dispatch_policy.network_dispatch_allowed
+                ),
+                "network_dispatch_blockers": list(
+                    dispatch.dispatch_policy.network_dispatch_blockers
+                ),
             },
         )
         return {"actions": actions}

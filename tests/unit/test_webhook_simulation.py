@@ -40,6 +40,11 @@ def test_webhook_simulation_reports_policy_without_network_dispatch() -> None:
     assert dispatch.dispatch_policy.timeout_seconds == 3
     assert dispatch.dispatch_policy.max_retries == 2
     assert dispatch.dispatch_policy.requires_human_approval is True
+    assert dispatch.dispatch_policy.network_dispatch_allowed is False
+    assert dispatch.dispatch_policy.network_dispatch_blockers == (
+        "mode_simulated",
+        "human_approval_required",
+    )
 
 
 def test_webhook_simulation_disabled_policy_still_does_not_complete_action() -> None:
@@ -64,3 +69,25 @@ def test_webhook_simulation_disabled_policy_still_does_not_complete_action() -> 
     assert dispatch.reason == "n8n webhook notification disabled; no external request was sent."
     assert dispatch.dispatch_policy.mode == "disabled"
     assert dispatch.dispatch_policy.url_configured is False
+    assert dispatch.dispatch_policy.network_dispatch_allowed is False
+    assert dispatch.dispatch_policy.network_dispatch_blockers == (
+        "mode_disabled",
+        "missing_webhook_url",
+        "human_approval_required",
+    )
+
+
+def test_webhook_policy_reports_missing_url_without_human_approval_blocker() -> None:
+    service = WebhookSimulationService(
+        settings=Settings(
+            n8n_webhook_mode="simulated",
+            n8n_webhook_url=" ",
+            n8n_webhook_requires_human_approval=False,
+        )
+    )
+
+    policy = service.dispatch_policy()
+
+    assert policy.url_configured is False
+    assert policy.network_dispatch_allowed is False
+    assert policy.network_dispatch_blockers == ("mode_simulated", "missing_webhook_url")

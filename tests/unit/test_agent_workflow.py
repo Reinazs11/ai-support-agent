@@ -182,6 +182,12 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
     assert webhook_metadata["payload_summary"]["ticket_category"] == "billing"
     assert webhook_metadata["dispatch_policy"]["mode"] == "simulated"
     assert webhook_metadata["dispatch_policy"]["requires_human_approval"] is True
+    assert webhook_metadata["dispatch_policy"]["network_dispatch_allowed"] is False
+    assert webhook_metadata["dispatch_policy"]["network_dispatch_blockers"] == [
+        "mode_simulated",
+        "missing_webhook_url",
+        "human_approval_required",
+    ]
     assert sensitive_message not in serialized_webhook_metadata
     assert "ABC123" not in serialized_webhook_metadata
 
