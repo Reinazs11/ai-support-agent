@@ -53,7 +53,8 @@ Implemented:
   deterministic ticket classification, persists internal ticket records, and
   generates approval-gated email drafts.
 - Simulated n8n webhook workflow action for ticket notifications; it records a
-  safe payload summary and never sends an external request.
+  safe payload summary, explicit network-dispatch blockers, and never sends an
+  external request.
 - Structured agent workflow audit logs for workflow run IDs, route, action
   names/statuses, ticket IDs, approval flags, source counts, and latency without
   logging user message content or email bodies.
@@ -69,7 +70,7 @@ Still pending:
 - Persistent workflow audit trail storage.
 - Langfuse tracing and richer observability dashboards.
 - Real n8n webhook dispatch after approval, retry, and secret-handling rules are
-  designed.
+  implemented and validated.
 - Deployment setup.
 
 ## Tech Stack
@@ -156,7 +157,9 @@ N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=true
 
 Real outbound webhook dispatch is not implemented yet. `N8N_WEBHOOK_URL` is
 reserved for the future boundary and is only logged as configured/not configured;
-it is never called by the current workflow.
+it is never called by the current workflow. The workflow also logs explicit
+network-dispatch blockers such as simulated mode, missing URL, and required
+human approval so the future live boundary can be reviewed before it is enabled.
 
 Use the PowerShell helper for common local workflows:
 

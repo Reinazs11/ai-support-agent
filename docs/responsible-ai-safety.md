@@ -12,6 +12,9 @@
 - Webhook notifications may be simulated locally, but outbound webhook dispatch
   must remain disabled until approval, retry, timeout, and secret-handling rules
   are designed.
+- Webhook dispatch logs should expose only safe policy metadata, including
+  boolean URL presence and explicit dispatch blockers, not the webhook URL or
+  request body.
 - Webhook URLs or secrets must not be logged. Logs may record whether a URL is
   configured, but not the URL value.
 

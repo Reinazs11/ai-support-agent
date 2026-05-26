@@ -10,6 +10,8 @@ class WebhookDispatchPolicy:
     timeout_seconds: float
     max_retries: int
     requires_human_approval: bool
+    network_dispatch_allowed: bool
+    network_dispatch_blockers: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -54,15 +56,42 @@ class WebhookSimulationService:
         )
 
     def dispatch_policy(self) -> WebhookDispatchPolicy:
+        mode = self.settings.n8n_webhook_mode
+        url_configured = bool(self.settings.n8n_webhook_url.strip())
+        blockers = self._network_dispatch_blockers(
+            mode=mode,
+            url_configured=url_configured,
+            requires_human_approval=self.settings.n8n_webhook_requires_human_approval,
+        )
         return WebhookDispatchPolicy(
-            mode=self.settings.n8n_webhook_mode,
-            url_configured=bool(self.settings.n8n_webhook_url),
+            mode=mode,
+            url_configured=url_configured,
             timeout_seconds=self.settings.n8n_webhook_timeout_seconds,
             max_retries=self.settings.n8n_webhook_max_retries,
             requires_human_approval=self.settings.n8n_webhook_requires_human_approval,
+            network_dispatch_allowed=not blockers,
+            network_dispatch_blockers=tuple(blockers),
         )
 
     def _simulation_reason(self, policy: WebhookDispatchPolicy) -> str:
         if policy.mode == "disabled":
             return "n8n webhook notification disabled; no external request was sent."
         return "n8n webhook notification simulated locally; no external request was sent."
+
+    def _network_dispatch_blockers(
+        self,
+        *,
+        mode: str,
+        url_configured: bool,
+        requires_human_approval: bool,
+    ) -> list[str]:
+        blockers = []
+        if mode == "disabled":
+            blockers.append("mode_disabled")
+        elif mode == "simulated":
+            blockers.append("mode_simulated")
+        if not url_configured:
+            blockers.append("missing_webhook_url")
+        if requires_human_approval:
+            blockers.append("human_approval_required")
+        return blockers
