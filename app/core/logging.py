@@ -5,6 +5,8 @@ import structlog
 
 from app.core.config import Settings
 
+SENSITIVE_THIRD_PARTY_LOGGERS = ("openai", "httpx", "httpcore")
+
 
 def configure_logging(settings: Settings) -> None:
     logging.basicConfig(
@@ -24,3 +26,5 @@ def configure_logging(settings: Settings) -> None:
         ),
         cache_logger_on_first_use=True,
     )
+    for logger_name in SENSITIVE_THIRD_PARTY_LOGGERS:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
