@@ -52,9 +52,10 @@ Implemented:
 - Initial LangGraph workflow endpoint that routes between RAG answers and
   deterministic ticket classification, persists internal ticket records, and
   generates approval-gated email drafts.
-- Simulated n8n webhook workflow action for ticket notifications; it records a
-  safe payload summary, explicit network-dispatch blockers, and never sends an
-  external request.
+- n8n webhook workflow action for ticket notifications. It defaults to
+  simulation, records a safe payload summary and explicit network-dispatch
+  blockers, and can dispatch a real webhook only when live mode is explicitly
+  configured.
 - Structured agent workflow audit logs for workflow run IDs, route, action
   names/statuses, ticket IDs, approval flags, source counts, and latency without
   logging user message content or email bodies.
@@ -69,8 +70,7 @@ Still pending:
 - Object storage or durable file retention policy for uploaded documents.
 - Persistent workflow audit trail storage.
 - Langfuse tracing and richer observability dashboards.
-- Real n8n webhook dispatch after approval, retry, and secret-handling rules are
-  implemented and validated.
+- Live n8n smoke testing with a real webhook URL.
 - Deployment setup.
 
 ## Tech Stack
@@ -155,11 +155,20 @@ N8N_WEBHOOK_MAX_RETRIES=0
 N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=true
 ```
 
-Real outbound webhook dispatch is not implemented yet. `N8N_WEBHOOK_URL` is
-reserved for the future boundary and is only logged as configured/not configured;
-it is never called by the current workflow. The workflow also logs explicit
-network-dispatch blockers such as simulated mode, missing URL, and required
-human approval so the future live boundary can be reviewed before it is enabled.
+The default `simulated` mode never sends a network request. To intentionally send
+a real n8n webhook from ticket workflows, set:
+
+```powershell
+N8N_WEBHOOK_MODE=live
+N8N_WEBHOOK_URL=https://your-n8n-host/webhook/your-path
+N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=false
+```
+
+The webhook URL is never logged. Logs include only whether a URL is configured,
+the dispatch mode, timeout/retry settings, dispatch blockers, attempt count,
+response status code, and summarized error type. The payload intentionally omits
+the original user message and email draft body; it contains only safe ticket
+summary fields.
 
 Use the PowerShell helper for common local workflows:
 
@@ -237,6 +246,11 @@ ticket fields, action statuses, email-draft approval, and external-action
 boundaries, including the simulated n8n webhook action, without live LLM or
 embedding calls. `/agent/respond` answer-mode cases are intentionally kept out
 of this default ticket baseline.
+
+Keep `N8N_WEBHOOK_MODE=simulated` when running the default agent eval baseline.
+In `live` mode, webhook actions can be marked `completed` after a real external
+dispatch, which is intentionally outside the default no-side-effect eval
+contract.
 
 There is also an optional answer-path dataset for disabled-provider runs:
 

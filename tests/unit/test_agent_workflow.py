@@ -7,6 +7,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.agents.schemas import AgentRequest
 from app.agents.service import AgentWorkflowService
+from app.agents.webhooks import WebhookDispatchService, WebhookHttpResponse
+from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import Ticket
 from app.db.session import create_session_factory
@@ -23,6 +25,23 @@ class CapturingLogger:
 class FailingRagService:
     async def answer(self, request: object) -> object:
         raise ValueError("boom")
+
+
+class FakeWebhookHttpClient:
+    def __init__(self) -> None:
+        self.requests: list[dict[str, object]] = []
+
+    async def post_json(
+        self,
+        *,
+        url: str,
+        payload: dict[str, object],
+        timeout_seconds: float,
+    ) -> WebhookHttpResponse:
+        self.requests.append(
+            {"url": url, "payload": payload, "timeout_seconds": timeout_seconds}
+        )
+        return WebhookHttpResponse(status_code=200)
 
 
 def build_test_session() -> Session:
@@ -175,9 +194,12 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
 
     webhook_event, webhook_metadata = capture.records[0]
     serialized_webhook_metadata = json.dumps(webhook_metadata)
-    assert webhook_event == "agent_n8n_webhook_simulated"
+    assert webhook_event == "agent_n8n_webhook_dispatch"
     assert webhook_metadata["action_name"] == "notify_n8n_webhook"
     assert webhook_metadata["action_status"] == "simulated"
+    assert webhook_metadata["attempts"] == 0
+    assert webhook_metadata["response_status_code"] is None
+    assert webhook_metadata["error_type"] is None
     assert webhook_metadata["payload_summary"]["ticket_id"] == response.ticket.id
     assert webhook_metadata["payload_summary"]["ticket_category"] == "billing"
     assert webhook_metadata["dispatch_policy"]["mode"] == "simulated"
@@ -190,6 +212,48 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
     ]
     assert sensitive_message not in serialized_webhook_metadata
     assert "ABC123" not in serialized_webhook_metadata
+
+
+async def test_ticket_workflow_can_complete_live_n8n_dispatch_without_logging_url(
+    monkeypatch,
+) -> None:
+    capture = CapturingLogger()
+    monkeypatch.setattr("app.agents.service.logger", capture)
+    http_client = FakeWebhookHttpClient()
+    webhook_url = "https://n8n.example.test/webhook/support"
+    webhook_service = WebhookDispatchService(
+        settings=Settings(
+            n8n_webhook_mode="live",
+            n8n_webhook_url=webhook_url,
+            n8n_webhook_timeout_seconds=4,
+            n8n_webhook_requires_human_approval=False,
+        ),
+        http_client=http_client,
+    )
+    sensitive_message = "Invoice problem with private token LIVE123."
+
+    response = await AgentWorkflowService(
+        session=build_test_session(),
+        webhook_service=webhook_service,
+    ).run(AgentRequest(message=sensitive_message, mode="ticket"))
+
+    action_statuses = {action.name: action.status for action in response.actions}
+    assert action_statuses["notify_n8n_webhook"] == "completed"
+    assert len(http_client.requests) == 1
+    assert http_client.requests[0]["url"] == webhook_url
+
+    webhook_event, webhook_metadata = capture.records[0]
+    serialized_webhook_metadata = json.dumps(webhook_metadata)
+    assert webhook_event == "agent_n8n_webhook_dispatch"
+    assert webhook_metadata["action_status"] == "completed"
+    assert webhook_metadata["attempts"] == 1
+    assert webhook_metadata["response_status_code"] == 200
+    assert webhook_metadata["dispatch_policy"]["mode"] == "live"
+    assert webhook_metadata["dispatch_policy"]["network_dispatch_allowed"] is True
+    assert webhook_metadata["dispatch_policy"]["network_dispatch_blockers"] == []
+    assert webhook_url not in serialized_webhook_metadata
+    assert sensitive_message not in serialized_webhook_metadata
+    assert "LIVE123" not in serialized_webhook_metadata
 
 
 async def test_agent_workflow_failure_logs_error_type_without_message_content(

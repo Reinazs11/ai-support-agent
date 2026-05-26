@@ -19,18 +19,20 @@
 - Agent workflows are starting in Phase 6. The workflow endpoint can route to
   RAG answers or deterministic ticket classification and persists internal
   ticket records. Email drafts are deterministic local drafts and are never sent
-  automatically. n8n webhook notifications are simulated locally and never sent.
-  n8n mode, URL presence, timeout, retries, approval policy, and explicit
-  network-dispatch blockers are configured only as a dispatch boundary.
-  LLM-assisted routing and real n8n webhook dispatch are not implemented yet.
-  External business actions remain simulated or human-approved.
+  automatically. n8n webhook notifications default to simulated mode, but live
+  mode can POST to a configured webhook URL when human approval is explicitly
+  disabled. n8n mode, URL presence, timeout, retries, approval policy, and
+  explicit network-dispatch blockers are logged without exposing the webhook
+  URL, user message, or email body. LLM-assisted routing is not implemented yet.
+  External business actions remain simulated or human-approved by default.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
   side-effect boundaries. It also has an optional disabled-provider answer-path
   dataset and a small seeded-corpus answer-path dataset for `/agent/respond`.
   These optional datasets still depend on the local API/provider configuration
-  used during the run. The suite does not yet cover real n8n webhook behavior,
-  persistent audit trail storage, or LLM-assisted routing.
+  used during the run. The suite covers n8n live dispatch with fake HTTP clients,
+  but does not yet include a live n8n integration test, persistent audit trail
+  storage, or LLM-assisted routing.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.

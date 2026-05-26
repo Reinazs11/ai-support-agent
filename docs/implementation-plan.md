@@ -93,14 +93,16 @@ eval baseline covers ticket routes, ticket fields, action statuses, email-draft
 approval, and forbidden completed external actions. Structured workflow audit
 logs now record route, action names/statuses, ticket IDs, approval flags, source
 counts, workflow run IDs, and latency without logging message or email body
-content. Ticket workflows now include a simulated n8n webhook notification with
-a safe payload summary; no outbound webhook request is sent. Real n8n dispatch
-and LLM-assisted routing remain pending. The n8n dispatch boundary is now
-explicit in settings: supported modes are `simulated` and `disabled`, URL
-presence is logged only as a boolean, timeout/retry values are reserved, and
-human approval remains required by default. Workflow logs also report explicit
-network-dispatch blockers such as simulated mode, missing URL, and required
-human approval. The agent eval runner can also
+content. Ticket workflows now include an n8n webhook notification boundary with
+a safe payload summary. It defaults to simulated mode, but live mode can send a
+real outbound POST when `N8N_WEBHOOK_MODE=live`, a webhook URL is configured,
+and `N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=false`. LLM-assisted routing remains
+pending. The n8n dispatch boundary is explicit in settings: supported modes are
+`simulated`, `disabled`, and `live`, URL presence is logged only as a boolean,
+timeout/retry values are applied to live dispatch, and human approval remains
+required by default. Workflow logs also report explicit network-dispatch
+blockers such as simulated mode, missing URL, and required human approval. The
+agent eval runner can also
 validate answer-mode disabled-provider behavior through
 `evals/agent_answer_disabled.jsonl` and seeded-corpus answer behavior through
 `evals/agent_answer_seeded.jsonl`, but optional answer datasets should be run
@@ -109,9 +111,8 @@ explicitly desired.
 
 Recommended next increments:
 
-1. Add a real n8n dispatch implementation only after explicit approval,
-   including the HTTP client, secret handling, retry/timeout behavior, and live
-   integration test plan.
+1. Run a controlled live n8n smoke test after a real webhook URL is configured
+   locally.
 2. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
    deterministic workflow baseline is stable.
 

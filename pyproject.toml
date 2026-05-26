@@ -11,6 +11,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic>=1.13",
     "fastapi>=0.115",
+    "httpx>=0.28",
     "langfuse>=2.53",
     "langgraph>=0.2",
     "openai>=1.57",
@@ -28,7 +29,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx>=0.28",
     "mypy>=1.13",
     "pre-commit>=4.0",
     "pytest>=8.3",
