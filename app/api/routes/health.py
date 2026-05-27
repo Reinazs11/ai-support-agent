@@ -18,6 +18,12 @@ async def healthcheck() -> HealthResponse:
             n8n_status = "missing_webhook_url"
         elif settings.n8n_webhook_requires_human_approval:
             n8n_status = "human_approval_required"
+    agent_router_status = settings.agent_router_provider
+    if settings.agent_router_provider == "llm":
+        if settings.chat_provider != "openai":
+            agent_router_status = "llm_chat_provider_disabled"
+        elif not (settings.chat_api_key or settings.openai_api_key):
+            agent_router_status = "llm_missing_api_key"
     return HealthResponse(
         status="ok",
         app=settings.app_name,
@@ -27,5 +33,6 @@ async def healthcheck() -> HealthResponse:
             "qdrant": "configured",
             "openai": "configured" if openai_configured else "missing_api_key",
             "n8n": n8n_status,
+            "agent_router": agent_router_status,
         },
     )

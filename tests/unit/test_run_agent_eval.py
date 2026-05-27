@@ -9,6 +9,7 @@ from scripts.run_agent_eval import (
     load_dataset,
     load_document_manifest,
     resolve_document_ids,
+    validate_agent_eval_environment,
 )
 
 
@@ -23,6 +24,7 @@ def test_load_dataset_reads_agent_workflow_cases(tmp_path) -> None:
                 "expected_route": "human_escalation",
                 "expected_ticket_category": "technical_support",
                 "expected_action_statuses": {"send_email": "human_approval_required"},
+                "requires_agent_router_provider": "llm",
             }
         )
         + "\n",
@@ -36,6 +38,7 @@ def test_load_dataset_reads_agent_workflow_cases(tmp_path) -> None:
     assert cases[0].mode == "ticket"
     assert cases[0].expected_route == "human_escalation"
     assert cases[0].expected_action_statuses == {"send_email": "human_approval_required"}
+    assert cases[0].requires_agent_router_provider == "llm"
 
 
 def test_committed_agent_workflow_dataset_is_well_formed() -> None:
@@ -85,6 +88,20 @@ def test_committed_agent_answer_seeded_dataset_is_well_formed() -> None:
         if case.expected_retrieval_status == "generated":
             assert case.expected_source_titles
             assert case.expected_min_source_count == 1
+
+
+def test_committed_agent_router_llm_dataset_is_well_formed() -> None:
+    cases = load_dataset(Path("evals/agent_router_llm.jsonl"))
+    case_ids = [case.id for case in cases]
+
+    assert len(cases) >= 3
+    assert len(case_ids) == len(set(case_ids))
+    for case in cases:
+        assert case.mode == "auto"
+        assert case.requires_agent_router_provider == "llm"
+        assert case.expected_route in {"answer", "classify_ticket"}
+        assert "send_email" in case.forbidden_completed_actions
+        assert "notify_n8n_webhook" in case.forbidden_completed_actions
 
 
 def test_evaluate_response_passes_expected_answer_workflow() -> None:
@@ -254,6 +271,30 @@ def test_build_summary_reports_pass_rate_and_latency() -> None:
     assert summary["failed"] == 1
     assert summary["pass_rate"] == 0.5
     assert summary["average_latency_ms"] == 20
+
+
+def test_validate_agent_eval_environment_accepts_matching_router_provider() -> None:
+    case = load_dataset(Path("evals/agent_router_llm.jsonl"), max_cases=1)[0]
+
+    validate_agent_eval_environment(
+        cases=[case],
+        dependencies={"agent_router": "llm"},
+    )
+
+
+def test_validate_agent_eval_environment_rejects_wrong_router_provider() -> None:
+    case = load_dataset(Path("evals/agent_router_llm.jsonl"), max_cases=1)[0]
+
+    try:
+        validate_agent_eval_environment(
+            cases=[case],
+            dependencies={"agent_router": "deterministic"},
+        )
+    except RuntimeError as exc:
+        assert "requires agent_router=llm" in str(exc)
+        assert "agent_router=deterministic" in str(exc)
+    else:
+        raise AssertionError("Expected router provider mismatch to fail.")
 
 
 def test_failed_result_records_expected_actual_and_reasons() -> None:
@@ -458,4 +499,5 @@ def load_dataset_case(
         expected_email_draft_present=case.expected_email_draft_present,
         expected_action_statuses=case.expected_action_statuses,
         forbidden_completed_actions=case.forbidden_completed_actions,
+        requires_agent_router_provider=case.requires_agent_router_provider,
     )

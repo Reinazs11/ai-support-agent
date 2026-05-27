@@ -30,6 +30,7 @@ class AgentEvalCase:
     expected_email_draft_present: bool | None
     expected_action_statuses: dict[str, str]
     forbidden_completed_actions: list[str]
+    requires_agent_router_provider: str | None
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class AgentEvalResult:
     expected_email_draft_present: bool | None
     expected_action_statuses: dict[str, str]
     forbidden_completed_actions: list[str]
+    requires_agent_router_provider: str | None
     actual_answer: str | None
     actual_retrieval_status: str | None
     actual_source_count: int
@@ -178,6 +180,7 @@ def evaluate_response(
         expected_email_draft_present=case.expected_email_draft_present,
         expected_action_statuses=case.expected_action_statuses,
         forbidden_completed_actions=case.forbidden_completed_actions,
+        requires_agent_router_provider=case.requires_agent_router_provider,
         actual_answer=answer,
         actual_retrieval_status=response.get("retrieval_status"),
         actual_source_count=len(sources),
@@ -224,6 +227,13 @@ def run_eval(
     manifest_document_ids = load_document_manifest(document_manifest_path)
     results: list[AgentEvalResult] = []
     with httpx.Client(base_url=base_url, timeout=30) as client:
+        if _requires_health_preflight(cases):
+            health_response = client.get("/health")
+            health_response.raise_for_status()
+            validate_agent_eval_environment(
+                cases=cases,
+                dependencies=health_response.json().get("dependencies", {}),
+            )
         for case in cases:
             document_ids = resolve_document_ids(
                 case=case,
@@ -351,6 +361,7 @@ def _case_from_payload(payload: dict[str, Any], line_number: int) -> AgentEvalCa
             expected_email_draft_present=payload.get("expected_email_draft_present"),
             expected_action_statuses=dict(payload.get("expected_action_statuses", {})),
             forbidden_completed_actions=list(payload.get("forbidden_completed_actions", [])),
+            requires_agent_router_provider=payload.get("requires_agent_router_provider"),
         )
     except KeyError as exc:
         raise RuntimeError(
@@ -400,6 +411,38 @@ def resolve_document_ids(
         manifest_document_ids[title]
         for title in case.expected_source_titles
     ]
+
+
+def validate_agent_eval_environment(
+    *,
+    cases: list[AgentEvalCase],
+    dependencies: dict[str, str],
+) -> None:
+    required_router_providers = {
+        case.requires_agent_router_provider
+        for case in cases
+        if case.requires_agent_router_provider is not None
+    }
+    if not required_router_providers:
+        return
+    if len(required_router_providers) > 1:
+        raise RuntimeError(
+            "Agent eval dataset requires multiple router providers: "
+            f"{', '.join(sorted(required_router_providers))}"
+        )
+
+    required_router_provider = required_router_providers.pop()
+    actual_router_provider = dependencies.get("agent_router", "unknown")
+    if actual_router_provider != required_router_provider:
+        raise RuntimeError(
+            "Agent eval dataset requires "
+            f"agent_router={required_router_provider}, but /health reports "
+            f"agent_router={actual_router_provider}."
+        )
+
+
+def _requires_health_preflight(cases: list[AgentEvalCase]) -> bool:
+    return any(case.requires_agent_router_provider is not None for case in cases)
 
 
 def _action_statuses(response: dict[str, Any]) -> dict[str, str]:
@@ -493,6 +536,7 @@ def _result_to_dict(result: AgentEvalResult) -> dict[str, Any]:
             "email_draft_present": result.expected_email_draft_present,
             "action_statuses": result.expected_action_statuses,
             "forbidden_completed_actions": result.forbidden_completed_actions,
+            "requires_agent_router_provider": result.requires_agent_router_provider,
         },
         "actual": {
             "route": result.actual_route,
@@ -548,6 +592,10 @@ def _build_markdown_report(
                 f"- Actual source titles: {result.actual_source_titles}",
                 f"- Expected action statuses: {result.expected_action_statuses}",
                 f"- Actual action statuses: {result.actual_action_statuses}",
+                (
+                    "- Required agent router provider: "
+                    f"{result.requires_agent_router_provider}"
+                ),
                 f"- Completed forbidden actions: {result.completed_forbidden_actions}",
                 f"- Latency ms: {round(result.latency_ms, 2)}",
                 "",

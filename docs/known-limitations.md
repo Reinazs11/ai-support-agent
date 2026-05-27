@@ -32,12 +32,15 @@
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
   side-effect boundaries. It also has an optional disabled-provider answer-path
-  dataset and a small seeded-corpus answer-path dataset for `/agent/respond`.
-  These optional datasets still depend on the local API/provider configuration
-  used during the run. The suite covers n8n live dispatch with fake HTTP clients,
-  and a manual live n8n smoke helper exists for a single controlled webhook
-  dispatch. There is no always-on live n8n integration test, persistent audit
-  trail storage, or live LLM-assisted routing evaluation baseline.
+  dataset, a small seeded-corpus answer-path dataset, and an optional
+  LLM-router dataset for ambiguous ticket-like auto-mode requests. These
+  optional datasets still depend on the local API/provider configuration used
+  during the run. The LLM-router dataset has a `/health` guard, but it is still
+  a small smoke-style check rather than a broad semantic routing benchmark. The
+  suite covers n8n live dispatch with fake HTTP clients, and a manual live n8n
+  smoke helper exists for a single controlled webhook dispatch. There is no
+  always-on live n8n integration test, persistent audit trail storage, or broad
+  live LLM-assisted routing evaluation baseline.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.

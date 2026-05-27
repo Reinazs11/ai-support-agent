@@ -4,7 +4,10 @@ from app.core.config import get_settings
 from app.main import create_app
 
 
-def test_health_contract() -> None:
+def test_health_contract(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("N8N_WEBHOOK_MODE", "simulated")
+    monkeypatch.setenv("AGENT_ROUTER_PROVIDER", "deterministic")
     client = TestClient(create_app())
 
     response = client.get("/health")
@@ -14,6 +17,8 @@ def test_health_contract() -> None:
     assert body["status"] == "ok"
     assert "dependencies" in body
     assert body["dependencies"]["n8n"] == "simulated"
+    assert body["dependencies"]["agent_router"] == "deterministic"
+    get_settings.cache_clear()
 
 
 def test_health_reports_openai_configured_with_provider_specific_keys(monkeypatch) -> None:
@@ -57,4 +62,47 @@ def test_health_reports_n8n_live_blockers(monkeypatch) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["dependencies"]["n8n"] == "missing_webhook_url"
+    get_settings.cache_clear()
+
+
+def test_health_reports_llm_agent_router_ready(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_ROUTER_PROVIDER", "llm")
+    monkeypatch.setenv("CHAT_PROVIDER", "openai")
+    monkeypatch.setenv("CHAT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    client = TestClient(create_app())
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dependencies"]["agent_router"] == "llm"
+    get_settings.cache_clear()
+
+
+def test_health_reports_llm_agent_router_blockers(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_ROUTER_PROVIDER", "llm")
+    monkeypatch.setenv("CHAT_PROVIDER", "disabled")
+    client = TestClient(create_app())
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dependencies"]["agent_router"] == "llm_chat_provider_disabled"
+    get_settings.cache_clear()
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("CHAT_PROVIDER", "openai")
+    monkeypatch.setenv("CHAT_API_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    client = TestClient(create_app())
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dependencies"]["agent_router"] == "llm_missing_api_key"
     get_settings.cache_clear()
