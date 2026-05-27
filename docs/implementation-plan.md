@@ -107,13 +107,12 @@ validate answer-mode disabled-provider behavior through
 `evals/agent_answer_disabled.jsonl` and seeded-corpus answer behavior through
 `evals/agent_answer_seeded.jsonl`, but optional answer datasets should be run
 only when the local API configuration is known not to call live providers unless
-explicitly desired.
+explicitly desired. A controlled live n8n smoke test helper is also available;
+it checks `/health` first and refuses to run unless n8n is fully `live`.
 
 Recommended next increments:
 
-1. Run a controlled live n8n smoke test after a real webhook URL is configured
-   locally.
-2. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
+1. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
    deterministic workflow baseline is stable.
 
 ## Phase 7: Observability And Deploy

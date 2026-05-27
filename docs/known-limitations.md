@@ -31,8 +31,9 @@
   dataset and a small seeded-corpus answer-path dataset for `/agent/respond`.
   These optional datasets still depend on the local API/provider configuration
   used during the run. The suite covers n8n live dispatch with fake HTTP clients,
-  but does not yet include a live n8n integration test, persistent audit trail
-  storage, or LLM-assisted routing.
+  and a manual live n8n smoke helper exists for a single controlled webhook
+  dispatch. There is no always-on live n8n integration test, persistent audit
+  trail storage, or LLM-assisted routing.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.
