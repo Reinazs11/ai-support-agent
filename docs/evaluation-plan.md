@@ -80,8 +80,8 @@ needs stronger answer-quality grading.
 4. Track regressions before changing chunking, embeddings, prompts, or retrieval.
 5. Enable the local semantic heuristic when answer phrasing needs a softer
    low-cost correctness signal.
-6. Keep the agent workflow evaluation baseline green before LLM-assisted
-   routing or additional external integrations.
+6. Keep the deterministic agent workflow evaluation baseline green before
+   relying on LLM-assisted routing or additional external integrations.
 7. Add LLM-as-judge or Ragas after Phase 6 workflows are stable enough that the
    evaluation targets will not immediately change.
 
@@ -111,7 +111,14 @@ the local API configuration determines whether providers are called.
 The default ticket dataset assumes `N8N_WEBHOOK_MODE=simulated`. In that mode,
 the n8n webhook action must stay `simulated`, not `completed`. Do not run the
 default agent eval with `N8N_WEBHOOK_MODE=live` unless the goal is a controlled
-side-effect test against a real n8n webhook.
+side-effect test against a real n8n webhook. Keep
+`AGENT_ROUTER_PROVIDER=deterministic` for the default baseline unless the goal
+is an explicit LLM-routing eval run.
+
+LLM-assisted agent routing is currently opt-in and is not part of the default
+agent eval baseline. Before using it in a demo or making it the default, add
+ambiguous auto-mode routing cases and compare deterministic vs. LLM router
+behavior with explicit cost and latency reporting.
 
 For a single controlled live n8n check, use:
 
