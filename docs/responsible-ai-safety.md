@@ -17,14 +17,18 @@
   request body.
 - Webhook URLs or secrets must not be logged. Logs may record whether a URL is
   configured, but not the URL value.
+- LLM-assisted route selection should stay opt-in until ambiguous routing cases
+  are evaluated. Provider failures or invalid route responses must fall back to
+  deterministic routing rather than blocking the workflow.
 
 ## Data Handling
 
 - Do not log full uploaded documents.
 - Do not log API keys, private prompts, credentials, or personally sensitive fields.
-- Agent workflow audit logs should include workflow run IDs, route, action
-  status, ticket IDs, approval flags, and latency, but not user message content,
-  generated answers, retrieved context, or email draft bodies.
+- Agent workflow audit logs should include workflow run IDs, route, router
+  provider/model/fallback metadata, action status, ticket IDs, approval flags,
+  router latency, and workflow latency, but not user message content, generated
+  answers, retrieved context, or email draft bodies.
 - Keep retention and deletion behavior explicit before using real company data.
 
 ## Human-In-The-Loop

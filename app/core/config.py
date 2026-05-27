@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     n8n_webhook_max_retries: int = Field(default=0, ge=0, le=3)
     n8n_webhook_requires_human_approval: bool = True
 
+    agent_router_provider: Literal["deterministic", "llm"] = "deterministic"
+    agent_router_model: str = ""
+
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"

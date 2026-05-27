@@ -6,6 +6,7 @@ import structlog
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
+from app.agents.routing import AgentRouter, build_agent_router
 from app.agents.schemas import (
     AgentAction,
     AgentEmailDraft,
@@ -15,6 +16,7 @@ from app.agents.schemas import (
 )
 from app.agents.state import AgentState
 from app.agents.webhooks import WebhookDispatchService
+from app.core.config import get_settings
 from app.db.models import Ticket
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
@@ -22,30 +24,18 @@ from app.tickets.classifier import classify_ticket_text
 
 logger = structlog.get_logger(__name__)
 
-TICKET_SIGNAL_TERMS = {
-    "billing",
-    "bug",
-    "critical",
-    "down",
-    "error",
-    "failure",
-    "invoice",
-    "login",
-    "payment",
-    "password",
-    "urgent",
-}
-
 
 class AgentWorkflowService:
     def __init__(
         self,
         rag_service: RagService | None = None,
         webhook_service: WebhookDispatchService | None = None,
+        router: AgentRouter | None = None,
         session: Session | None = None,
     ) -> None:
         self.rag_service = rag_service or RagService()
         self.webhook_service = webhook_service or WebhookDispatchService()
+        self.router = router or build_agent_router(get_settings())
         self.session = session
         self.workflow = self._build_workflow()
 
@@ -77,6 +67,7 @@ class AgentWorkflowService:
         self._log_workflow_completed(
             request=request,
             response=response,
+            state=state,
             workflow_run_id=workflow_run_id,
             latency_ms=(perf_counter() - started) * 1000,
         )
@@ -116,15 +107,20 @@ class AgentWorkflowService:
         workflow.add_edge("human_escalation", END)
         return workflow.compile()
 
-    def _route_request(self, state: AgentState) -> dict[str, str]:
-        mode = state.get("mode", "auto")
-        if mode == "answer":
-            return {"route": "answer"}
-        if mode == "ticket":
-            return {"route": "classify_ticket"}
-        if _looks_like_ticket(state["user_message"]):
-            return {"route": "classify_ticket"}
-        return {"route": "answer"}
+    async def _route_request(self, state: AgentState) -> dict[str, object]:
+        started = perf_counter()
+        decision = await self.router.route(
+            message=state["user_message"],
+            mode=state.get("mode", "auto"),
+        )
+        return {
+            "route": decision.route,
+            "router_provider": decision.provider,
+            "router_model": decision.model,
+            "router_rationale": decision.rationale,
+            "router_fallback_reason": decision.fallback_reason,
+            "router_latency_ms": round((perf_counter() - started) * 1000, 2),
+        }
 
     async def _answer(self, state: AgentState) -> dict[str, object]:
         response = await self.rag_service.answer(
@@ -331,6 +327,7 @@ class AgentWorkflowService:
         *,
         request: AgentRequest,
         response: AgentResponse,
+        state: AgentState,
         workflow_run_id: str,
         latency_ms: float,
     ) -> None:
@@ -344,6 +341,11 @@ class AgentWorkflowService:
             document_filter_count=len(request.document_ids),
             customer_tier_present=request.customer_tier is not None,
             human_approval_required=response.human_approval_required,
+            router_provider=state.get("router_provider"),
+            router_model=state.get("router_model"),
+            router_rationale=state.get("router_rationale"),
+            router_fallback_reason=state.get("router_fallback_reason"),
+            router_latency_ms=state.get("router_latency_ms"),
             action_names=[action.name for action in response.actions],
             action_statuses=[
                 {"name": action.name, "status": action.status}
@@ -375,11 +377,6 @@ class AgentWorkflowService:
             customer_tier_present=request.customer_tier is not None,
             error_type=error_type,
         )
-
-
-def _looks_like_ticket(message: str) -> bool:
-    normalized = message.lower()
-    return any(term in normalized for term in TICKET_SIGNAL_TERMS)
 
 
 def _ticket_subject_from_message(message: str) -> str:

@@ -5,6 +5,11 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.agents.routing import (
+    AgentRouteDecision,
+    AgentRouterProviderError,
+    FallbackAgentRouter,
+)
 from app.agents.schemas import AgentRequest
 from app.agents.service import AgentWorkflowService
 from app.agents.webhooks import WebhookDispatchService, WebhookHttpResponse
@@ -12,6 +17,7 @@ from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import Ticket
 from app.db.session import create_session_factory
+from app.rag.schemas import ChatResponse
 
 
 class CapturingLogger:
@@ -25,6 +31,36 @@ class CapturingLogger:
 class FailingRagService:
     async def answer(self, request: object) -> object:
         raise ValueError("boom")
+
+
+class SimpleRagService:
+    async def answer(self, request: object) -> ChatResponse:
+        return ChatResponse(
+            answer="RAG answer",
+            confidence="low",
+            retrieval_status="generated",
+        )
+
+
+class FakeRouteModelService:
+    model = "fake-router"
+
+    def __init__(
+        self,
+        decision: AgentRouteDecision | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.decision = decision
+        self.error = error
+        self.messages: list[str] = []
+
+    async def classify_route(self, message: str) -> AgentRouteDecision:
+        self.messages.append(message)
+        if self.error is not None:
+            raise self.error
+        if self.decision is None:
+            raise AgentRouterProviderError("No fake decision configured.")
+        return self.decision
 
 
 class FakeWebhookHttpClient:
@@ -152,6 +188,67 @@ async def test_auto_mode_routes_ticket_signals_to_ticket_workflow() -> None:
     assert response.email_draft is not None
 
 
+async def test_llm_router_can_route_auto_mode_to_ticket_workflow() -> None:
+    route_model = FakeRouteModelService(
+        decision=AgentRouteDecision(
+            route="classify_ticket",
+            provider="fake-llm",
+            rationale="support_follow_up",
+        )
+    )
+    router = FallbackAgentRouter(primary=route_model)
+
+    response = await AgentWorkflowService(router=router).run(
+        AgentRequest(message="Please have the support team follow up with me.")
+    )
+
+    assert route_model.messages == ["Please have the support team follow up with me."]
+    assert response.route == "classify_ticket"
+    assert response.ticket is not None
+    assert response.email_draft is not None
+
+
+async def test_llm_router_failure_falls_back_to_deterministic_routing(
+    monkeypatch,
+) -> None:
+    capture = CapturingLogger()
+    monkeypatch.setattr("app.agents.service.logger", capture)
+    route_model = FakeRouteModelService(
+        error=AgentRouterProviderError("provider unavailable")
+    )
+    router = FallbackAgentRouter(primary=route_model)
+
+    response = await AgentWorkflowService(router=router).run(
+        AgentRequest(message="Login error after password reset.")
+    )
+
+    assert response.route == "classify_ticket"
+    assert response.ticket is not None
+    event, metadata = capture.records[-1]
+    assert event == "agent_workflow_completed"
+    assert metadata["router_provider"] == "deterministic"
+    assert metadata["router_model"] == "fake-router"
+    assert metadata["router_rationale"] == "ticket_signal_terms"
+    assert metadata["router_fallback_reason"] == "AgentRouterProviderError"
+    assert metadata["router_latency_ms"] >= 0
+
+
+async def test_llm_router_invalid_answer_falls_back_to_answer_route() -> None:
+    route_model = FakeRouteModelService(
+        error=AgentRouterProviderError("invalid route response")
+    )
+    router = FallbackAgentRouter(primary=route_model)
+
+    response = await AgentWorkflowService(
+        rag_service=SimpleRagService(),
+        router=router,
+    ).run(AgentRequest(message="What does the refund policy say?"))
+
+    assert response.route == "answer"
+    assert response.answer == "RAG answer"
+    assert response.ticket is None
+
+
 async def test_ticket_workflow_logs_structured_audit_without_message_content(
     monkeypatch,
 ) -> None:
@@ -174,6 +271,11 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
     assert metadata["ticket_id"] == response.ticket.id
     assert metadata["ticket_category"] == "billing"
     assert metadata["ticket_priority"] == "normal"
+    assert metadata["router_provider"] == "deterministic"
+    assert metadata["router_model"] is None
+    assert metadata["router_rationale"] == "explicit_ticket_mode"
+    assert metadata["router_fallback_reason"] is None
+    assert metadata["router_latency_ms"] >= 0
     assert metadata["customer_tier_present"] is True
     assert metadata["action_names"] == [
         "classify_ticket",

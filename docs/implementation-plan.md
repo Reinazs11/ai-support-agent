@@ -85,19 +85,28 @@ against the right targets.
 - Add n8n webhook workflow after API behavior is stable.
 
 Status: in progress. `/agent/respond` routes between direct RAG answers and
-deterministic ticket classification with LangGraph. Ticket workflows persist an
+ticket classification with LangGraph. The default route selector remains the
+deterministic keyword/mode router so local development and baseline evals stay
+cheap and repeatable. An optional LLM-assisted router can be enabled with
+`AGENT_ROUTER_PROVIDER=llm`; it uses the configured OpenAI chat credentials and
+model, asks only for a compact JSON route decision, and falls back explicitly to
+the deterministic router when configuration, provider, or parse errors occur.
+Ticket workflows persist an
 internal ticket record in PostgreSQL and generate local email drafts, while
 email sending and high-priority escalation remain human-approval-required. No
 external communication is sent automatically. A deterministic agent workflow
 eval baseline covers ticket routes, ticket fields, action statuses, email-draft
 approval, and forbidden completed external actions. Structured workflow audit
 logs now record route, action names/statuses, ticket IDs, approval flags, source
-counts, workflow run IDs, and latency without logging message or email body
-content. Ticket workflows now include an n8n webhook notification boundary with
-a safe payload summary. It defaults to simulated mode, but live mode can send a
+counts, router provider/model/rationale/fallback reason/latency, workflow run
+IDs, and workflow latency without logging message or email body content. Ticket
+workflows now include an n8n webhook notification boundary with a safe payload
+summary. It defaults to
+simulated mode, but live mode can send a
 real outbound POST when `N8N_WEBHOOK_MODE=live`, a webhook URL is configured,
 and `N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=false`. LLM-assisted routing remains
-pending. The n8n dispatch boundary is explicit in settings: supported modes are
+opt-in rather than the baseline behavior. The n8n dispatch boundary is explicit
+in settings: supported modes are
 `simulated`, `disabled`, and `live`, URL presence is logged only as a boolean,
 timeout/retry values are applied to live dispatch, and human approval remains
 required by default. Workflow logs also report explicit network-dispatch
@@ -112,8 +121,10 @@ it checks `/health` first and refuses to run unless n8n is fully `live`.
 
 Recommended next increments:
 
-1. Consider LLM-assisted routing or real LLM-as-judge/Ragas only after the
-   deterministic workflow baseline is stable.
+1. Expand the agent eval dataset with ambiguous routing cases before making
+   LLM routing part of any default or demo path.
+2. Consider real LLM-as-judge/Ragas only after the workflow targets are stable
+   enough that the extra cost measures useful behavior.
 
 ## Phase 7: Observability And Deploy
 

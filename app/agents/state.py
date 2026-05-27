@@ -27,3 +27,8 @@ class AgentState(TypedDict, total=False):
     email_requires_approval: bool
     actions: list[dict[str, str]]
     human_approval_required: bool
+    router_provider: str
+    router_model: str | None
+    router_rationale: str
+    router_fallback_reason: str | None
+    router_latency_ms: float

@@ -50,15 +50,17 @@ Implemented:
 - Deterministic `/agent/respond` workflow evaluation for ticket routes, ticket
   fields, action statuses, and human-approval boundaries.
 - Initial LangGraph workflow endpoint that routes between RAG answers and
-  deterministic ticket classification, persists internal ticket records, and
-  generates approval-gated email drafts.
+  ticket classification, persists internal ticket records, and generates
+  approval-gated email drafts. Routing is deterministic by default and has an
+  opt-in LLM-assisted classifier with deterministic fallback.
 - n8n webhook workflow action for ticket notifications. It defaults to
   simulation, records a safe payload summary and explicit network-dispatch
   blockers, and can dispatch a real webhook only when live mode is explicitly
   configured.
 - Structured agent workflow audit logs for workflow run IDs, route, action
-  names/statuses, ticket IDs, approval flags, source counts, and latency without
-  logging user message content or email bodies.
+  names/statuses, ticket IDs, approval flags, router metadata, source counts,
+  router latency, and workflow latency without logging user message content or
+  email bodies.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -170,6 +172,20 @@ response status code, and summarized error type. The payload intentionally omits
 the original user message and email draft body; it contains only safe ticket
 summary fields.
 
+Configure agent routing in `.env`:
+
+```powershell
+AGENT_ROUTER_PROVIDER=deterministic
+AGENT_ROUTER_MODEL=
+```
+
+The default deterministic router keeps local runs cheap and repeatable. To test
+LLM-assisted route selection intentionally, set `AGENT_ROUTER_PROVIDER=llm`.
+The router uses `CHAT_PROVIDER`, `CHAT_API_KEY` or `OPENAI_API_KEY`, and
+`AGENT_ROUTER_MODEL` if set, otherwise `CHAT_MODEL`. Provider/configuration or
+invalid-response errors fall back to deterministic routing and are logged only
+as metadata.
+
 Use the PowerShell helper for common local workflows:
 
 ```powershell
@@ -264,7 +280,8 @@ of this default ticket baseline.
 Keep `N8N_WEBHOOK_MODE=simulated` when running the default agent eval baseline.
 In `live` mode, webhook actions can be marked `completed` after a real external
 dispatch, which is intentionally outside the default no-side-effect eval
-contract.
+contract. Also keep `AGENT_ROUTER_PROVIDER=deterministic` unless you
+intentionally want the eval run to spend LLM tokens for route selection.
 
 There is also an optional answer-path dataset for disabled-provider runs:
 

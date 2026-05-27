@@ -21,7 +21,8 @@ tickets, and later executes controlled workflows with LangGraph.
   local email drafts, n8n webhook notifications, and human-approved business
   actions. n8n defaults to simulated mode and only dispatches live when an
   operator explicitly enables live mode, configures a webhook URL, and disables
-  the human-approval blocker.
+  the human-approval blocker. Agent routing defaults to deterministic mode and
+  can optionally use an LLM route classifier with deterministic fallback.
 - `evals`: datasets, runners, metrics, and Markdown reports.
 - `observability`: logs, latency spans, LLM traces, cost, and retrieved-document audit.
 
@@ -39,10 +40,11 @@ tickets, and later executes controlled workflows with LangGraph.
    source IDs and scores, model names, provider error type, latency, token
    counts, and estimated cost when cost rates are configured. Tracing is still
    planned.
-8. Agent workflow logs record workflow run IDs, route, action names/statuses,
-   ticket IDs, approval-required flags, source counts, and latency. They
-   intentionally omit user message content, generated answers, retrieved
-   context, and email draft bodies.
+8. Agent workflow logs record workflow run IDs, route, router provider/model,
+   router rationale, router fallback reason, router latency, action
+   names/statuses, ticket IDs, approval-required flags, source counts, and
+   workflow latency. They intentionally omit user message content, generated
+   answers, retrieved context, and email draft bodies.
 
 ## Key Decisions
 
@@ -68,3 +70,7 @@ tickets, and later executes controlled workflows with LangGraph.
 - n8n integration defaults to a simulated action with a safe payload summary.
   Live dispatch uses the same minimized payload, timeout, retry settings, and
   content-minimized logs without recording the webhook URL or response body.
+- LLM-assisted agent routing is opt-in. The deterministic router remains the
+  default because it is cheaper, repeatable, and easier to evaluate. When LLM
+  routing is enabled, provider/configuration/parse failures fall back to the
+  deterministic router and are logged only as error-type metadata.

@@ -125,10 +125,14 @@ Response includes category, priority, escalation flag, and rationale.
 ## POST /agent/respond
 
 Runs the Phase 6 workflow layer. The endpoint can route to a grounded RAG answer
-or to deterministic ticket classification. Ticket workflows persist an internal
-ticket record and generate a local email draft. Email sending remains
-human-approval-required. n8n webhook notification defaults to simulation, but it
-can perform a real outbound POST when live mode is explicitly configured.
+or to ticket classification. Route selection is deterministic by default. When
+`AGENT_ROUTER_PROVIDER=llm`, auto-mode route selection uses the configured
+OpenAI chat provider for a compact JSON route decision and falls back to the
+deterministic router if configuration, provider, or response parsing fails.
+Ticket workflows persist an internal ticket record and generate a local email
+draft. Email sending remains human-approval-required. n8n webhook notification
+defaults to simulation, but it can perform a real outbound POST when live mode
+is explicitly configured.
 
 The n8n boundary exposes configuration for mode, URL presence, timeout, retries,
 human-approval requirement, and network-dispatch blockers in structured logs.
@@ -151,7 +155,7 @@ Request:
 
 `mode` can be:
 
-- `auto`: use a simple deterministic router.
+- `auto`: use the configured router, deterministic by default.
 - `answer`: force the RAG answer path.
 - `ticket`: force the ticket classification path.
 
