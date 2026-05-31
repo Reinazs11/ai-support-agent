@@ -196,6 +196,12 @@ def test_evaluate_response_passes_expected_ticket_workflow() -> None:
                 "notify_n8n_webhook": "simulated",
                 "request_human_review": "human_approval_required",
             },
+            router_usage={
+                "prompt_tokens": 100,
+                "completion_tokens": 20,
+                "total_tokens": 120,
+                "estimated_cost_usd": 0.000045,
+            },
         ),
         latency_ms=12.5,
     )
@@ -203,6 +209,12 @@ def test_evaluate_response_passes_expected_ticket_workflow() -> None:
     assert result.passed is True
     assert result.failure_reasons == []
     assert result.completed_forbidden_actions == []
+    assert result.actual_router_provider == "openai"
+    assert result.actual_router_model == "gpt-test"
+    assert result.actual_router_prompt_tokens == 100
+    assert result.actual_router_completion_tokens == 20
+    assert result.actual_router_total_tokens == 120
+    assert result.actual_router_estimated_cost_usd == 0.000045
 
 
 def test_evaluate_response_fails_completed_forbidden_action() -> None:
@@ -271,6 +283,69 @@ def test_build_summary_reports_pass_rate_and_latency() -> None:
     assert summary["failed"] == 1
     assert summary["pass_rate"] == 0.5
     assert summary["average_latency_ms"] == 20
+    assert summary["router_prompt_tokens"] == 0
+    assert summary["router_completion_tokens"] == 0
+    assert summary["router_total_tokens"] == 0
+    assert summary["router_estimated_cost_usd"] is None
+
+
+def test_build_summary_reports_router_usage_and_cost() -> None:
+    case = load_dataset(Path("evals/initial_agent_workflow.jsonl"), max_cases=1)[0]
+    first_result = evaluate_response(
+        case=case,
+        response=build_response(
+            route="human_escalation",
+            category="technical_support",
+            priority="high",
+            should_escalate=True,
+            actions={
+                "classify_ticket": "simulated",
+                "save_ticket": "completed",
+                "draft_email": "completed",
+                "send_email": "human_approval_required",
+                "notify_n8n_webhook": "simulated",
+                "request_human_review": "human_approval_required",
+            },
+            router_usage={
+                "prompt_tokens": 100,
+                "completion_tokens": 20,
+                "total_tokens": 120,
+                "estimated_cost_usd": 0.000045,
+            },
+        ),
+        latency_ms=10,
+    )
+    second_result = evaluate_response(
+        case=case,
+        response=build_response(
+            route="human_escalation",
+            category="technical_support",
+            priority="high",
+            should_escalate=True,
+            actions={
+                "classify_ticket": "simulated",
+                "save_ticket": "completed",
+                "draft_email": "completed",
+                "send_email": "human_approval_required",
+                "notify_n8n_webhook": "simulated",
+                "request_human_review": "human_approval_required",
+            },
+            router_usage={
+                "prompt_tokens": 110,
+                "completion_tokens": 30,
+                "total_tokens": 140,
+                "estimated_cost_usd": 0.00006,
+            },
+        ),
+        latency_ms=20,
+    )
+
+    summary = build_summary([first_result, second_result])
+
+    assert summary["router_prompt_tokens"] == 210
+    assert summary["router_completion_tokens"] == 50
+    assert summary["router_total_tokens"] == 260
+    assert summary["router_estimated_cost_usd"] == 0.000105
 
 
 def test_validate_agent_eval_environment_accepts_matching_router_provider() -> None:
@@ -323,6 +398,7 @@ def test_failed_result_records_expected_actual_and_reasons() -> None:
     ]
     assert payload["expected"]["route"] == "human_escalation"
     assert payload["actual"]["route"] == "classify_ticket"
+    assert "router_total_tokens" in payload["actual"]
 
 
 def test_markdown_report_includes_failure_details() -> None:
@@ -344,6 +420,7 @@ def test_markdown_report_includes_failure_details() -> None:
     assert "# Agent Workflow Evaluation Report" in report
     assert "- Failure reasons: route, ticket_category" in report
     assert "- Actual route: classify_ticket" in report
+    assert "- Router total tokens: 0" in report
 
 
 def test_load_document_manifest_maps_titles_to_document_ids(tmp_path) -> None:
@@ -426,6 +503,7 @@ def build_response(
     priority: str,
     should_escalate: bool,
     actions: dict[str, str],
+    router_usage: dict | None = None,
 ) -> dict:
     return {
         "route": route,
@@ -443,6 +521,13 @@ def build_response(
             {"name": name, "status": status, "reason": "test"}
             for name, status in actions.items()
         ],
+        "router": {
+            "provider": "openai",
+            "model": "gpt-test",
+            "fallback_reason": None,
+            "latency_ms": 12.3,
+            "usage": router_usage,
+        },
     }
 
 

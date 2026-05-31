@@ -27,8 +27,9 @@
 - Do not log API keys, private prompts, credentials, or personally sensitive fields.
 - Agent workflow audit logs should include workflow run IDs, route, router
   provider/model/fallback metadata, action status, ticket IDs, approval flags,
-  router latency, and workflow latency, but not user message content, generated
-  answers, retrieved context, or email draft bodies.
+  router token/cost estimates, router latency, and workflow latency, but not
+  user message content, generated answers, retrieved context, or email draft
+  bodies.
 - Keep retention and deletion behavior explicit before using real company data.
 
 ## Human-In-The-Loop

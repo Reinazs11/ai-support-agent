@@ -34,6 +34,14 @@ class AgentEmailDraft(BaseModel):
     requires_approval: bool = True
 
 
+class AgentRouterMetadata(BaseModel):
+    provider: str
+    model: str | None = None
+    fallback_reason: str | None = None
+    latency_ms: float | None = None
+    usage: ChatUsageEstimate | None = None
+
+
 class AgentResponse(BaseModel):
     route: Literal["answer", "classify_ticket", "save_ticket", "draft_email", "human_escalation"]
     answer: str | None = None
@@ -45,3 +53,4 @@ class AgentResponse(BaseModel):
     email_draft: AgentEmailDraft | None = None
     actions: list[AgentAction] = Field(default_factory=list)
     human_approval_required: bool = False
+    router: AgentRouterMetadata | None = None

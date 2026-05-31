@@ -178,6 +178,18 @@ Response:
   "retrieval_status": null,
   "sources": [],
   "usage": null,
+  "router": {
+    "provider": "openai",
+    "model": "gpt-5.4-nano",
+    "fallback_reason": null,
+    "latency_ms": 1200.5,
+    "usage": {
+      "prompt_tokens": 120,
+      "completion_tokens": 20,
+      "total_tokens": 140,
+      "estimated_cost_usd": 0.000049
+    }
+  },
   "ticket": {
     "id": "ticket-uuid",
     "status": "open",
@@ -226,6 +238,11 @@ Response:
   "human_approval_required": true
 }
 ```
+
+`router` reports the route-selection provider, model, fallback reason, latency,
+and token/cost estimate when the provider returns usage. In deterministic mode,
+`router.usage` is `null`. Cost estimates use the same configurable chat token
+rates as `/chat`.
 
 In live mode, `notify_n8n_webhook` can return:
 

@@ -35,12 +35,21 @@ class AgentRouterProviderError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class AgentRouteTokenUsage:
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float | None = None
+
+
+@dataclass(frozen=True)
 class AgentRouteDecision:
     route: AgentWorkflowRoute
     provider: str
     rationale: str
     model: str | None = None
     fallback_reason: str | None = None
+    usage: AgentRouteTokenUsage | None = None
 
 
 class AgentRouter(Protocol):
@@ -119,12 +128,20 @@ class UnconfiguredAgentRouteModelService:
 
 
 class OpenAIAgentRouteModelService:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        prompt_cost_per_1m_tokens: float = 0,
+        completion_cost_per_1m_tokens: float = 0,
+    ) -> None:
         if not api_key:
             raise AgentRouterConfigurationError("An API key is required for OpenAI routing.")
         if not model:
             raise AgentRouterConfigurationError("A model is required for OpenAI routing.")
         self.model = model
+        self.prompt_cost_per_1m_tokens = prompt_cost_per_1m_tokens
+        self.completion_cost_per_1m_tokens = completion_cost_per_1m_tokens
         self.client = AsyncOpenAI(api_key=api_key)
 
     async def classify_route(self, message: str) -> AgentRouteDecision:
@@ -146,6 +163,11 @@ class OpenAIAgentRouteModelService:
             content=content,
             provider="openai",
             model=self.model,
+            usage=_usage_from_openai_response(
+                response.usage,
+                prompt_cost_per_1m_tokens=self.prompt_cost_per_1m_tokens,
+                completion_cost_per_1m_tokens=self.completion_cost_per_1m_tokens,
+            ),
         )
 
 
@@ -166,7 +188,14 @@ def build_agent_router(settings: "Settings") -> AgentRouter:
                 or settings.openai_chat_model
             )
             try:
-                route_model = OpenAIAgentRouteModelService(api_key=api_key, model=model)
+                route_model = OpenAIAgentRouteModelService(
+                    api_key=api_key,
+                    model=model,
+                    prompt_cost_per_1m_tokens=settings.chat_prompt_cost_per_1m_tokens,
+                    completion_cost_per_1m_tokens=(
+                        settings.chat_completion_cost_per_1m_tokens
+                    ),
+                )
             except AgentRouterConfigurationError as exc:
                 route_model = UnconfiguredAgentRouteModelService(str(exc))
         return FallbackAgentRouter(primary=route_model)
@@ -208,6 +237,7 @@ def parse_agent_route_response(
     content: str,
     provider: str,
     model: str | None = None,
+    usage: AgentRouteTokenUsage | None = None,
 ) -> AgentRouteDecision:
     try:
         parsed = json.loads(content)
@@ -230,9 +260,54 @@ def parse_agent_route_response(
         provider=provider,
         rationale=rationale.strip()[:240] or "llm_route_classification",
         model=model,
+        usage=usage,
     )
 
 
 def looks_like_ticket(message: str) -> bool:
     normalized = message.lower()
     return any(term in normalized for term in TICKET_SIGNAL_TERMS)
+
+
+def _usage_from_openai_response(
+    usage: object,
+    *,
+    prompt_cost_per_1m_tokens: float,
+    completion_cost_per_1m_tokens: float,
+) -> AgentRouteTokenUsage | None:
+    if usage is None:
+        return None
+
+    prompt_tokens = getattr(usage, "prompt_tokens", None)
+    completion_tokens = getattr(usage, "completion_tokens", None)
+    total_tokens = getattr(usage, "total_tokens", None)
+    token_values = [prompt_tokens, completion_tokens, total_tokens]
+    if not all(isinstance(value, int) for value in token_values):
+        return None
+
+    estimated_cost_usd = _estimate_cost_usd(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        prompt_cost_per_1m_tokens=prompt_cost_per_1m_tokens,
+        completion_cost_per_1m_tokens=completion_cost_per_1m_tokens,
+    )
+    return AgentRouteTokenUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        estimated_cost_usd=estimated_cost_usd,
+    )
+
+
+def _estimate_cost_usd(
+    *,
+    prompt_tokens: int,
+    completion_tokens: int,
+    prompt_cost_per_1m_tokens: float,
+    completion_cost_per_1m_tokens: float,
+) -> float | None:
+    if prompt_cost_per_1m_tokens == 0 and completion_cost_per_1m_tokens == 0:
+        return None
+    prompt_cost = prompt_tokens * prompt_cost_per_1m_tokens / 1_000_000
+    completion_cost = completion_tokens * completion_cost_per_1m_tokens / 1_000_000
+    return round(prompt_cost + completion_cost, 8)

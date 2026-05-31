@@ -44,7 +44,8 @@ Implemented:
 - Initial chat model provider configuration for OpenAI or disabled mode.
 - Character-based context budgeting before LLM generation, with logs for
   retrieved count, context count, context size, truncation, model, top-k, and latency.
-- Token usage and configurable cost estimates for generated chat responses.
+- Token usage and configurable cost estimates for generated chat responses and
+  LLM-assisted agent routing.
 - CLI evaluation runner for deterministic `/chat` checks plus an optional local
   heuristic semantic judge.
 - Deterministic `/agent/respond` workflow evaluation for ticket routes, ticket
@@ -59,8 +60,8 @@ Implemented:
   configured.
 - Structured agent workflow audit logs for workflow run IDs, route, action
   names/statuses, ticket IDs, approval flags, router metadata, source counts,
-  router latency, and workflow latency without logging user message content or
-  email bodies.
+  router token/cost estimates, router latency, and workflow latency without
+  logging user message content or email bodies.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -184,7 +185,9 @@ LLM-assisted route selection intentionally, set `AGENT_ROUTER_PROVIDER=llm`.
 The router uses `CHAT_PROVIDER`, `CHAT_API_KEY` or `OPENAI_API_KEY`, and
 `AGENT_ROUTER_MODEL` if set, otherwise `CHAT_MODEL`. Provider/configuration or
 invalid-response errors fall back to deterministic routing and are logged only
-as metadata.
+as metadata. Router token usage and estimated cost use the same configurable
+`CHAT_PROMPT_COST_PER_1M_TOKENS` and `CHAT_COMPLETION_COST_PER_1M_TOKENS`
+rates as chat generation.
 
 Use the PowerShell helper for common local workflows:
 
@@ -194,6 +197,20 @@ Use the PowerShell helper for common local workflows:
 
 `start` runs local infrastructure, migrations, and the API in foreground with
 reload. The API is available at `http://localhost:8000`.
+
+If Windows blocks `.ps1` execution, use a per-process bypass instead of changing
+machine policy:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1 start
+```
+
+For a direct API-only run after infrastructure and migrations are already ready,
+use Python directly:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
 
 You can also run each step separately:
 

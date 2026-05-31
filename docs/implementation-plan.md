@@ -98,10 +98,10 @@ external communication is sent automatically. A deterministic agent workflow
 eval baseline covers ticket routes, ticket fields, action statuses, email-draft
 approval, and forbidden completed external actions. Structured workflow audit
 logs now record route, action names/statuses, ticket IDs, approval flags, source
-counts, router provider/model/rationale/fallback reason/latency, workflow run
-IDs, and workflow latency without logging message or email body content. Ticket
-workflows now include an n8n webhook notification boundary with a safe payload
-summary. It defaults to
+counts, router provider/model/rationale/fallback reason/latency, router
+token/cost estimates, workflow run IDs, and workflow latency without logging
+message or email body content. Ticket workflows now include an n8n webhook
+notification boundary with a safe payload summary. It defaults to
 simulated mode, but live mode can send a
 real outbound POST when `N8N_WEBHOOK_MODE=live`, a webhook URL is configured,
 and `N8N_WEBHOOK_REQUIRES_HUMAN_APPROVAL=false`. LLM-assisted routing remains
@@ -118,9 +118,10 @@ validate answer-mode disabled-provider behavior through
 only when the local API configuration is known not to call live providers unless
 explicitly desired. The optional `evals/agent_router_llm.jsonl` dataset covers
 ambiguous ticket-like auto-mode requests for the LLM router and is guarded by a
-`/health` preflight that requires `dependencies.agent_router=llm`. A controlled
-live n8n smoke test helper is also available; it checks `/health` first and
-refuses to run unless n8n is fully `live`.
+`/health` preflight that requires `dependencies.agent_router=llm`; its reports
+aggregate router usage and estimated cost when the provider returns usage. A
+controlled live n8n smoke test helper is also available; it checks `/health`
+first and refuses to run unless n8n is fully `live`.
 
 Recommended next increments:
 

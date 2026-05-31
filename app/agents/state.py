@@ -32,3 +32,4 @@ class AgentState(TypedDict, total=False):
     router_rationale: str
     router_fallback_reason: str | None
     router_latency_ms: float
+    router_usage: Any

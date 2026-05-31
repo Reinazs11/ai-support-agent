@@ -12,13 +12,14 @@ from app.agents.schemas import (
     AgentEmailDraft,
     AgentRequest,
     AgentResponse,
+    AgentRouterMetadata,
     AgentTicketResult,
 )
 from app.agents.state import AgentState
 from app.agents.webhooks import WebhookDispatchService
 from app.core.config import get_settings
 from app.db.models import Ticket
-from app.rag.schemas import ChatRequest
+from app.rag.schemas import ChatRequest, ChatUsageEstimate
 from app.rag.service import RagService
 from app.tickets.classifier import classify_ticket_text
 
@@ -120,6 +121,7 @@ class AgentWorkflowService:
             "router_rationale": decision.rationale,
             "router_fallback_reason": decision.fallback_reason,
             "router_latency_ms": round((perf_counter() - started) * 1000, 2),
+            "router_usage": _router_usage_estimate(decision.usage),
         }
 
     async def _answer(self, state: AgentState) -> dict[str, object]:
@@ -320,6 +322,13 @@ class AgentWorkflowService:
                 for action in state.get("actions", [])
             ],
             human_approval_required=state.get("human_approval_required", False),
+            router=AgentRouterMetadata(
+                provider=state.get("router_provider", "unknown"),
+                model=state.get("router_model"),
+                fallback_reason=state.get("router_fallback_reason"),
+                latency_ms=state.get("router_latency_ms"),
+                usage=state.get("router_usage"),
+            ),
         )
 
     def _log_workflow_completed(
@@ -346,6 +355,26 @@ class AgentWorkflowService:
             router_rationale=state.get("router_rationale"),
             router_fallback_reason=state.get("router_fallback_reason"),
             router_latency_ms=state.get("router_latency_ms"),
+            router_prompt_tokens=(
+                state["router_usage"].prompt_tokens
+                if state.get("router_usage") is not None
+                else None
+            ),
+            router_completion_tokens=(
+                state["router_usage"].completion_tokens
+                if state.get("router_usage") is not None
+                else None
+            ),
+            router_total_tokens=(
+                state["router_usage"].total_tokens
+                if state.get("router_usage") is not None
+                else None
+            ),
+            router_estimated_cost_usd=(
+                state["router_usage"].estimated_cost_usd
+                if state.get("router_usage") is not None
+                else None
+            ),
             action_names=[action.name for action in response.actions],
             action_statuses=[
                 {"name": action.name, "status": action.status}
@@ -382,6 +411,17 @@ class AgentWorkflowService:
 def _ticket_subject_from_message(message: str) -> str:
     first_line = message.strip().splitlines()[0]
     return first_line[:120] or "Support request"
+
+
+def _router_usage_estimate(usage: Any) -> ChatUsageEstimate | None:
+    if usage is None:
+        return None
+    return ChatUsageEstimate(
+        prompt_tokens=usage.prompt_tokens,
+        completion_tokens=usage.completion_tokens,
+        total_tokens=usage.total_tokens,
+        estimated_cost_usd=usage.estimated_cost_usd,
+    )
 
 
 def _email_subject_from_ticket(ticket_subject: str) -> str:
