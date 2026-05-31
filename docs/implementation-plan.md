@@ -154,8 +154,11 @@ context limiting, and generation. Agent traces cover workflow execution and
 router decisions. Traces record statuses, counts, model names, token usage,
 cost estimates, and operational IDs, but not prompts, retrieved chunk text,
 generated answers, user messages, webhook URLs, or email bodies. Richer
-dashboards, trace sampling policy, and public demo docs remain pending Phase 7
-work. Deployment readiness documentation now defines required services, env var
-groups, startup order, `/health` expectations, safe demo defaults, and explicit
-non-production gaps. The Docker image now includes Alembic migration assets so
-migrations can run from the built image.
+dashboards and trace sampling policy remain pending Phase 7 work. Deployment
+readiness documentation now defines required services, env var groups, startup
+order, `/health` expectations, safe demo defaults, and explicit non-production
+gaps. The Docker image now includes Alembic migration assets so migrations can
+run from the built image. Public demo documentation now provides a safe local
+walkthrough for portfolio/interview review, including default no-side-effect
+settings, RAG evals, agent workflow evals, optional LLM-router checks, optional
+Langfuse tracing, and optional live n8n smoke testing.
