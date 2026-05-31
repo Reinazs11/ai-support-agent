@@ -76,6 +76,7 @@ Implemented:
 - Docker Compose services for PostgreSQL and Qdrant.
 - Architecture, API, evaluation, safety, and limitation docs.
 - Deployment readiness documentation for demo-style hosting boundaries.
+- Safe local demo guide for portfolio or interview walkthroughs.
 - Initial pytest coverage.
 
 Still pending:
@@ -367,6 +368,13 @@ Run the main checks before committing:
 .\scripts\dev.ps1 check
 ```
 
+## Demo
+
+Use [`docs/demo-guide.md`](docs/demo-guide.md) for the recommended local demo
+path. It keeps n8n simulated and deterministic routing enabled by default, then
+describes when to intentionally enable live OpenAI, LLM routing, Langfuse, or
+n8n.
+
 ## Roadmap
 
 The project follows the phases documented in
@@ -396,3 +404,4 @@ citations, evaluation, cost, latency, and operational safety.
 - [`docs/responsible-ai-safety.md`](docs/responsible-ai-safety.md)
 - [`docs/known-limitations.md`](docs/known-limitations.md)
 - [`docs/deployment-readiness.md`](docs/deployment-readiness.md)
+- [`docs/demo-guide.md`](docs/demo-guide.md)
