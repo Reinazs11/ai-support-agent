@@ -3,6 +3,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import get_settings
 from app.db.base import Base
 from app.db.models import Ticket
 from app.db.session import create_session_factory, get_db_session
@@ -44,6 +45,33 @@ def test_agent_answer_contract_uses_rag_response_shape() -> None:
     assert body["answer"]
     assert body["ticket"] is None
     assert body["human_approval_required"] is False
+
+
+def test_agent_llm_router_fallback_to_answer_returns_controlled_provider_response(
+    monkeypatch,
+) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_ROUTER_PROVIDER", "llm")
+    monkeypatch.setenv("CHAT_PROVIDER", "disabled")
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "disabled")
+    session = build_test_session()
+    client = build_test_client(session)
+
+    response = client.post(
+        "/agent/respond",
+        json={"message": "What does the refund policy say?", "mode": "auto"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["route"] == "answer"
+    assert body["retrieval_status"] == "not_configured"
+    assert body["confidence"] == "low"
+    assert body["sources"] == []
+    assert body["ticket"] is None
+    assert body["router"]["provider"] == "deterministic"
+    assert body["router"]["model"] == "unconfigured"
+    assert body["router"]["fallback_reason"] == "AgentRouterConfigurationError"
 
 
 def test_agent_ticket_contract_persists_ticket_and_keeps_external_actions_controlled() -> None:

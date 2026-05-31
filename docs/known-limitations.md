@@ -9,7 +9,8 @@
 - `/chat` retrieves from Qdrant and can call an OpenAI chat model when
   configured. Current metadata filtering is limited to document IDs, context
   budgeting is character-based rather than token-aware, and cost estimates
-  require configured per-token rates.
+  require configured per-token rates. Embedding and chat provider failures
+  return controlled statuses, but provider retries/backoff are still minimal.
 - Ticket classification is deterministic and keyword-based. Agent route
   selection is deterministic by default, with an opt-in LLM-assisted route
   classifier available behind `AGENT_ROUTER_PROVIDER=llm`.

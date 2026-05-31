@@ -46,9 +46,10 @@ generated answer plus source citations, and falls back explicitly when retrieved
 context is unavailable or insufficient. Logging records top-k, model, source
 IDs/scores, retrieval/generation latency, context truncation, token usage, and
 estimated cost when rates are configured. Document ID filtering, character-based
-context limits, and controlled provider-error handling are in place. Richer
-metadata filters, token-aware preflight budgeting, and deeper provider retry
-behavior remain possible hardening work, but they are not blockers for Phase 6.
+context limits, and controlled provider-error handling are in place for chat and
+embedding generation failures. Richer metadata filters, token-aware preflight
+budgeting, and deeper provider retry behavior remain possible hardening work,
+but they are not blockers for Phase 6.
 
 ## Phase 5: Evaluation
 
@@ -110,7 +111,10 @@ in settings: supported modes are
 `simulated`, `disabled`, and `live`, URL presence is logged only as a boolean,
 timeout/retry values are applied to live dispatch, and human approval remains
 required by default. Workflow logs also report explicit network-dispatch
-blockers such as simulated mode, missing URL, and required human approval. The
+blockers such as simulated mode, missing URL, and required human approval.
+Answer-mode agent paths now inherit controlled RAG provider failure responses,
+so embedding provider outages return `embedding_unavailable` instead of an
+unhandled API error. The
 agent eval runner can also
 validate answer-mode disabled-provider behavior through
 `evals/agent_answer_disabled.jsonl` and seeded-corpus answer behavior through
