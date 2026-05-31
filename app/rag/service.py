@@ -13,6 +13,7 @@ from app.rag.chat_models import (
 )
 from app.rag.embeddings import (
     EmbeddingConfigurationError,
+    EmbeddingProviderError,
     EmbeddingService,
     build_embedding_service,
 )
@@ -51,11 +52,23 @@ class RagService:
 
         try:
             question_vectors = await self.embedding_service.embed_texts([request.question])
-        except EmbeddingConfigurationError:
+        except EmbeddingConfigurationError as exc:
+            self._log_embedding_unavailable(top_k=request.top_k, error_type=type(exc).__name__)
             return ChatResponse(
                 answer=(
                     "Vector search cannot run because the embedding provider is not "
                     "configured correctly."
+                ),
+                sources=[],
+                confidence="low",
+                retrieval_status="embedding_unavailable",
+            )
+        except EmbeddingProviderError as exc:
+            self._log_embedding_unavailable(top_k=request.top_k, error_type=type(exc).__name__)
+            return ChatResponse(
+                answer=(
+                    "Vector search cannot run because the embedding provider is "
+                    "currently unavailable."
                 ),
                 sources=[],
                 confidence="low",
@@ -270,6 +283,24 @@ class RagService:
         prompt_cost = (prompt_tokens / 1_000_000) * prompt_rate
         completion_cost = (completion_tokens / 1_000_000) * completion_rate
         return round(prompt_cost + completion_cost, 8)
+
+    def _log_embedding_unavailable(
+        self,
+        *,
+        top_k: int | None,
+        error_type: str,
+    ) -> None:
+        self._log_chat_result(
+            status="embedding_unavailable",
+            top_k=top_k or self.settings.retrieval_top_k,
+            retrieval_latency_ms=0,
+            generation_latency_ms=None,
+            retrieved_count=0,
+            context_source_count=0,
+            context_chars=0,
+            context_truncated=False,
+            error_type=error_type,
+        )
 
     def _limit_context_chunks(
         self,

@@ -99,7 +99,8 @@ configured.
 Current retrieval statuses include:
 
 - `not_configured`: embedding provider or vector store is unavailable.
-- `embedding_unavailable`: the question could not be embedded.
+- `embedding_unavailable`: the question could not be embedded because the
+  embedding provider is misconfigured or temporarily unavailable.
 - `no_results`: Qdrant returned no relevant chunks.
 - `insufficient_context`: chunks were retrieved, but the model determined that
   they do not contain enough information.

@@ -7,6 +7,7 @@ from app.rag.chat_models import (
     ChatModelResult,
     ChatTokenUsage,
 )
+from app.rag.embeddings import EmbeddingProviderError
 from app.rag.schemas import ChatRequest
 from app.rag.service import RagService
 from app.rag.vector_store import ChunkVectorRecord, RetrievedChunk
@@ -20,6 +21,11 @@ class FakeEmbeddingService:
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         self.requests.append(texts)
         return self.vectors
+
+
+class FailingEmbeddingService:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        raise EmbeddingProviderError("fake embedding provider unavailable")
 
 
 class FakeVectorStore:
@@ -111,6 +117,22 @@ async def test_chat_reports_no_results_when_vector_search_is_empty() -> None:
     assert vector_store.search_limit == 3
     assert vector_store.search_document_ids == []
     assert embedding_service.requests == [["What is the refund policy?"]]
+
+
+@pytest.mark.asyncio
+async def test_chat_reports_embedding_unavailable_from_provider_failure() -> None:
+    service = RagService(
+        settings=Settings(retrieval_top_k=3),
+        embedding_service=FailingEmbeddingService(),
+        vector_store=FakeVectorStore(),
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "embedding_unavailable"
+    assert response.confidence == "low"
+    assert response.sources == []
+    assert "embedding provider is currently unavailable" in response.answer
 
 
 @pytest.mark.asyncio

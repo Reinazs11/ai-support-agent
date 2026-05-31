@@ -10,6 +10,10 @@ class EmbeddingConfigurationError(ValueError):
     pass
 
 
+class EmbeddingProviderError(RuntimeError):
+    pass
+
+
 class EmbeddingService(Protocol):
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         pass
@@ -26,7 +30,10 @@ class OpenAIEmbeddingService:
         if not texts:
             return []
 
-        response = await self.client.embeddings.create(model=self.model, input=texts)
+        try:
+            response = await self.client.embeddings.create(model=self.model, input=texts)
+        except Exception as exc:
+            raise EmbeddingProviderError("OpenAI embedding generation failed.") from exc
         ordered = sorted(response.data, key=lambda item: item.index)
         return [item.embedding for item in ordered]
 

@@ -18,7 +18,10 @@ from app.core.config import Settings
 from app.db.base import Base
 from app.db.models import Ticket
 from app.db.session import create_session_factory
+from app.rag.embeddings import EmbeddingProviderError
 from app.rag.schemas import ChatResponse
+from app.rag.service import RagService
+from app.rag.vector_store import ChunkVectorRecord, RetrievedChunk
 
 
 class CapturingLogger:
@@ -41,6 +44,33 @@ class SimpleRagService:
             confidence="low",
             retrieval_status="generated",
         )
+
+
+class FailingEmbeddingService:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        raise EmbeddingProviderError("fake embedding provider unavailable")
+
+
+class UnusedVectorStore:
+    def delete_document_vectors(self, collection_name: str, document_id: str) -> None:
+        raise AssertionError("Vector store should not be called after embedding failure.")
+
+    def index_chunks(
+        self,
+        collection_name: str,
+        vector_size: int,
+        records: list[ChunkVectorRecord],
+    ) -> None:
+        raise AssertionError("Vector store should not be called after embedding failure.")
+
+    def search_similar(
+        self,
+        collection_name: str,
+        vector: list[float],
+        limit: int,
+        document_ids: list[str] | None = None,
+    ) -> list[RetrievedChunk]:
+        raise AssertionError("Vector store should not be called after embedding failure.")
 
 
 class FakeRouteModelService:
@@ -265,6 +295,39 @@ async def test_llm_router_invalid_answer_falls_back_to_answer_route() -> None:
     assert response.route == "answer"
     assert response.answer == "RAG answer"
     assert response.ticket is None
+
+
+async def test_agent_answer_path_returns_controlled_response_when_embedding_provider_fails(
+    monkeypatch,
+) -> None:
+    capture = CapturingLogger()
+    monkeypatch.setattr("app.agents.service.logger", capture)
+    route_model = FakeRouteModelService(
+        error=AgentRouterProviderError("provider unavailable")
+    )
+    router = FallbackAgentRouter(primary=route_model)
+    rag_service = RagService(
+        settings=Settings(retrieval_top_k=3),
+        embedding_service=FailingEmbeddingService(),
+        vector_store=UnusedVectorStore(),
+    )
+
+    response = await AgentWorkflowService(
+        rag_service=rag_service,
+        router=router,
+    ).run(AgentRequest(message="What does the refund policy say?"))
+
+    assert response.route == "answer"
+    assert response.retrieval_status == "embedding_unavailable"
+    assert response.confidence == "low"
+    assert response.sources == []
+    assert response.ticket is None
+    assert "embedding provider is currently unavailable" in (response.answer or "")
+    event, metadata = capture.records[-1]
+    assert event == "agent_workflow_completed"
+    assert metadata["route"] == "answer"
+    assert metadata["retrieval_status"] == "embedding_unavailable"
+    assert metadata["router_fallback_reason"] == "AgentRouterProviderError"
 
 
 async def test_ticket_workflow_logs_structured_audit_without_message_content(
