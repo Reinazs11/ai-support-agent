@@ -27,7 +27,9 @@ quality, and honest documentation about what is complete and what is still plann
 
 Phase 1 foundation, Phase 2 persistence, Phase 3 ingestion/indexing/retrieval,
 Phase 4 RAG answer generation, and Phase 5 evaluation are in place. Phase 6
-agent workflows are in progress.
+agent workflows are in place with deterministic defaults, controlled external
+action boundaries, and an opt-in LLM-router path. The next major track is Phase
+7 observability and deployment.
 
 Implemented:
 
@@ -54,6 +56,9 @@ Implemented:
   ticket classification, persists internal ticket records, and generates
   approval-gated email drafts. Routing is deterministic by default and has an
   opt-in LLM-assisted classifier with deterministic fallback.
+- Guarded LLM-router eval coverage for ambiguous auto-mode support requests.
+  The May 31, 2026 live run passed 3/3 cases with n8n simulated, averaging
+  2223.24 ms and 437 total router tokens for an estimated 0.00019765 USD.
 - n8n webhook workflow action for ticket notifications. It defaults to
   simulation, records a safe payload summary and explicit network-dispatch
   blockers, and can dispatch a real webhook only when live mode is explicitly
@@ -73,7 +78,8 @@ Still pending:
 - Object storage or durable file retention policy for uploaded documents.
 - Persistent workflow audit trail storage.
 - Langfuse tracing and richer observability dashboards.
-- Live n8n smoke testing with a real webhook URL.
+- Broader LLM-router evaluation before considering it as the default route
+  selector.
 - Deployment setup.
 
 ## Tech Stack

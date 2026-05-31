@@ -76,3 +76,11 @@ tickets, and later executes controlled workflows with LangGraph.
   deterministic router and are logged only as error-type metadata. Router usage
   and cost estimates use the same configurable chat token rates as RAG answer
   generation.
+- Operationally, keep deterministic routing as the default for local
+  development, baseline evals, and CI-like checks. Enable LLM routing only for
+  demos or explicit experiments with ambiguous support requests, and keep n8n in
+  simulated mode unless the run is specifically testing live webhook dispatch.
+  The May 31, 2026 guarded LLM-router eval passed all 3 ambiguous ticket-like
+  cases with `gpt-5.4-nano`, averaging 2223.24 ms, 437 total router tokens, and
+  an estimated router cost of 0.00019765 USD. That is useful evidence, but the
+  dataset is still too small to make LLM routing the default.

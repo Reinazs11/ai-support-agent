@@ -124,14 +124,21 @@ explicitly desired. The optional `evals/agent_router_llm.jsonl` dataset covers
 ambiguous ticket-like auto-mode requests for the LLM router and is guarded by a
 `/health` preflight that requires `dependencies.agent_router=llm`; its reports
 aggregate router usage and estimated cost when the provider returns usage. A
+guarded live run on May 31, 2026 passed all 3 LLM-router cases with
+`gpt-5.4-nano`, averaging 2223.24 ms and 437 total router tokens for an
+estimated 0.00019765 USD. This supports keeping the LLM router available for
+explicit ambiguous-routing experiments, but the deterministic router remains the
+default until broader answer-vs-ticket and negative-case eval coverage exists. A
 controlled live n8n smoke test helper is also available; it checks `/health`
 first and refuses to run unless n8n is fully `live`.
 
 Recommended next increments:
 
-1. Run the optional LLM-router eval only when intentionally measuring the live
-   router cost/latency trade-off.
-2. Consider real LLM-as-judge/Ragas only after the workflow targets are stable
+1. Start Phase 7 observability/deploy work, beginning with traces around
+   retrieval and LLM calls so future live router/RAG runs are easier to inspect.
+2. Expand LLM-router eval coverage before considering it as a default route
+   selector.
+3. Consider real LLM-as-judge/Ragas only after the workflow targets are stable
    enough that the extra cost measures useful behavior.
 
 ## Phase 7: Observability And Deploy

@@ -129,6 +129,25 @@ tokens and keeps n8n simulated. Agent eval reports include aggregated router
 prompt tokens, completion tokens, total tokens, and estimated router cost when
 the API response includes router usage.
 
+Latest controlled LLM-router measurement:
+
+- Date: May 31, 2026.
+- Dataset: `evals/agent_router_llm.jsonl`.
+- Environment guard: `/health` reported `agent_router=llm`, OpenAI configured,
+  and n8n simulated.
+- Result: 3 evaluated, 3 passed, 0 failed.
+- Average latency: 2223.24 ms.
+- Router usage: 332 prompt tokens, 105 completion tokens, 437 total tokens.
+- Estimated router cost: 0.00019765 USD with the configured token rates.
+
+Operational decision: keep deterministic routing as the default and use
+LLM-assisted routing only when explicitly measuring or demonstrating ambiguous
+auto-mode support requests. The current LLM-router eval is a useful smoke-level
+signal, not a production-quality semantic routing benchmark. Before making LLM
+routing the default, expand the dataset with answer-vs-ticket contrast cases,
+negative ticket cases, and repeated runs to observe provider latency and
+fallback frequency.
+
 For a single controlled live n8n check, use:
 
 ```powershell
