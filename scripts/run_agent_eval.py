@@ -64,6 +64,12 @@ class AgentEvalResult:
     actual_email_draft_present: bool
     actual_action_statuses: dict[str, str]
     completed_forbidden_actions: list[str]
+    actual_router_provider: str | None
+    actual_router_model: str | None
+    actual_router_prompt_tokens: int | None
+    actual_router_completion_tokens: int | None
+    actual_router_total_tokens: int | None
+    actual_router_estimated_cost_usd: float | None
     latency_ms: float
     response: dict[str, Any]
 
@@ -99,6 +105,12 @@ def evaluate_response(
     answer_text = answer if isinstance(answer, str) else ""
     sources = response.get("sources") or []
     actual_source_titles = _source_titles(sources)
+    router = response.get("router") if isinstance(response.get("router"), dict) else {}
+    router_usage = (
+        router.get("usage")
+        if isinstance(router, dict) and isinstance(router.get("usage"), dict)
+        else {}
+    )
 
     route_passed = response.get("route") == case.expected_route
     answer_passed = all(
@@ -193,24 +205,50 @@ def evaluate_response(
         actual_email_draft_present=response.get("email_draft") is not None,
         actual_action_statuses=actual_action_statuses,
         completed_forbidden_actions=completed_forbidden_actions,
+        actual_router_provider=router.get("provider") if isinstance(router, dict) else None,
+        actual_router_model=router.get("model") if isinstance(router, dict) else None,
+        actual_router_prompt_tokens=_optional_int(router_usage.get("prompt_tokens")),
+        actual_router_completion_tokens=_optional_int(
+            router_usage.get("completion_tokens")
+        ),
+        actual_router_total_tokens=_optional_int(router_usage.get("total_tokens")),
+        actual_router_estimated_cost_usd=_optional_float(
+            router_usage.get("estimated_cost_usd")
+        ),
         latency_ms=latency_ms,
         response=response,
     )
 
 
-def build_summary(results: list[AgentEvalResult]) -> dict[str, float | int]:
+def build_summary(results: list[AgentEvalResult]) -> dict[str, float | int | None]:
     total = len(results)
     passed = sum(1 for result in results if result.passed)
     failed = total - passed
     average_latency = (
         sum(result.latency_ms for result in results) / total if total else 0
     )
+    router_prompt_tokens = sum(result.actual_router_prompt_tokens or 0 for result in results)
+    router_completion_tokens = sum(
+        result.actual_router_completion_tokens or 0 for result in results
+    )
+    router_total_tokens = sum(result.actual_router_total_tokens or 0 for result in results)
+    router_costs = [
+        result.actual_router_estimated_cost_usd
+        for result in results
+        if result.actual_router_estimated_cost_usd is not None
+    ]
     return {
         "cases_evaluated": total,
         "passed": passed,
         "failed": failed,
         "pass_rate": round(passed / total, 4) if total else 0,
         "average_latency_ms": round(average_latency, 2),
+        "router_prompt_tokens": router_prompt_tokens,
+        "router_completion_tokens": router_completion_tokens,
+        "router_total_tokens": router_total_tokens,
+        "router_estimated_cost_usd": (
+            round(sum(router_costs), 8) if router_costs else None
+        ),
     }
 
 
@@ -222,7 +260,7 @@ def run_eval(
     max_cases: int | None = None,
     document_id: str | None = None,
     document_manifest_path: Path | None = None,
-) -> tuple[dict[str, float | int], Path, Path]:
+) -> tuple[dict[str, float | int | None], Path, Path]:
     cases = load_dataset(dataset_path, max_cases=max_cases)
     manifest_document_ids = load_document_manifest(document_manifest_path)
     results: list[AgentEvalResult] = []
@@ -270,7 +308,7 @@ def run_eval(
 
 def write_reports(
     *,
-    summary: dict[str, float | int],
+    summary: dict[str, float | int | None],
     results: list[AgentEvalResult],
     dataset_path: Path,
     report_dir: Path,
@@ -371,6 +409,16 @@ def _case_from_payload(payload: dict[str, Any], line_number: int) -> AgentEvalCa
 
 def _optional_equal(*, actual: object, expected: object) -> bool:
     return expected is None or actual == expected
+
+
+def _optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+def _optional_float(value: object) -> float | None:
+    if isinstance(value, int | float):
+        return float(value)
+    return None
 
 
 def load_document_manifest(manifest_path: Path | None) -> dict[str, str]:
@@ -551,6 +599,12 @@ def _result_to_dict(result: AgentEvalResult) -> dict[str, Any]:
             "email_draft_present": result.actual_email_draft_present,
             "action_statuses": result.actual_action_statuses,
             "completed_forbidden_actions": result.completed_forbidden_actions,
+            "router_provider": result.actual_router_provider,
+            "router_model": result.actual_router_model,
+            "router_prompt_tokens": result.actual_router_prompt_tokens,
+            "router_completion_tokens": result.actual_router_completion_tokens,
+            "router_total_tokens": result.actual_router_total_tokens,
+            "router_estimated_cost_usd": result.actual_router_estimated_cost_usd,
         },
         "latency_ms": round(result.latency_ms, 2),
         "response": result.response,
@@ -558,7 +612,7 @@ def _result_to_dict(result: AgentEvalResult) -> dict[str, Any]:
 
 
 def _build_markdown_report(
-    summary: dict[str, float | int],
+    summary: dict[str, float | int | None],
     results: list[AgentEvalResult],
 ) -> str:
     lines = [
@@ -571,6 +625,10 @@ def _build_markdown_report(
         f"- Failed: {summary['failed']}",
         f"- Pass rate: {summary['pass_rate']}",
         f"- Average latency ms: {summary['average_latency_ms']}",
+        f"- Router prompt tokens: {summary['router_prompt_tokens']}",
+        f"- Router completion tokens: {summary['router_completion_tokens']}",
+        f"- Router total tokens: {summary['router_total_tokens']}",
+        f"- Router estimated cost USD: {summary['router_estimated_cost_usd']}",
         "",
         "## Cases",
         "",
@@ -592,6 +650,13 @@ def _build_markdown_report(
                 f"- Actual source titles: {result.actual_source_titles}",
                 f"- Expected action statuses: {result.expected_action_statuses}",
                 f"- Actual action statuses: {result.actual_action_statuses}",
+                f"- Actual router provider: {result.actual_router_provider}",
+                f"- Actual router model: {result.actual_router_model}",
+                f"- Actual router total tokens: {result.actual_router_total_tokens}",
+                (
+                    "- Actual router estimated cost USD: "
+                    f"{result.actual_router_estimated_cost_usd}"
+                ),
                 (
                     "- Required agent router provider: "
                     f"{result.requires_agent_router_provider}"

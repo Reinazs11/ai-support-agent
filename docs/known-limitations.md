@@ -27,7 +27,8 @@
   network-dispatch blockers are logged without exposing the webhook URL, user
   message, or email body. LLM-assisted routing is opt-in, not evaluated as a
   production-quality semantic router yet, and falls back to deterministic
-  routing on provider/configuration/parse errors.
+  routing on provider/configuration/parse errors. Router usage and cost are
+  reported only when the provider returns token usage.
   External business actions remain simulated or human-approved by default.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
@@ -36,11 +37,12 @@
   LLM-router dataset for ambiguous ticket-like auto-mode requests. These
   optional datasets still depend on the local API/provider configuration used
   during the run. The LLM-router dataset has a `/health` guard, but it is still
-  a small smoke-style check rather than a broad semantic routing benchmark. The
-  suite covers n8n live dispatch with fake HTTP clients, and a manual live n8n
-  smoke helper exists for a single controlled webhook dispatch. There is no
-  always-on live n8n integration test, persistent audit trail storage, or broad
-  live LLM-assisted routing evaluation baseline.
+  a small smoke-style check rather than a broad semantic routing benchmark. It
+  reports aggregate router usage/cost when available. The suite covers n8n live
+  dispatch with fake HTTP clients, and a manual live n8n smoke helper exists for
+  a single controlled webhook dispatch. There is no always-on live n8n
+  integration test, persistent audit trail storage, or broad live LLM-assisted
+  routing evaluation baseline.
 - Agent workflow audit logs are structured and content-minimized, but they are
   emitted as application logs only. There is no queryable audit table or trace
   dashboard yet.

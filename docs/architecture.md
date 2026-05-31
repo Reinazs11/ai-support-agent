@@ -41,10 +41,10 @@ tickets, and later executes controlled workflows with LangGraph.
    counts, and estimated cost when cost rates are configured. Tracing is still
    planned.
 8. Agent workflow logs record workflow run IDs, route, router provider/model,
-   router rationale, router fallback reason, router latency, action
-   names/statuses, ticket IDs, approval-required flags, source counts, and
-   workflow latency. They intentionally omit user message content, generated
-   answers, retrieved context, and email draft bodies.
+   router rationale, router fallback reason, router latency, router token/cost
+   estimates, action names/statuses, ticket IDs, approval-required flags, source
+   counts, and workflow latency. They intentionally omit user message content,
+   generated answers, retrieved context, and email draft bodies.
 
 ## Key Decisions
 
@@ -73,4 +73,6 @@ tickets, and later executes controlled workflows with LangGraph.
 - LLM-assisted agent routing is opt-in. The deterministic router remains the
   default because it is cheaper, repeatable, and easier to evaluate. When LLM
   routing is enabled, provider/configuration/parse failures fall back to the
-  deterministic router and are logged only as error-type metadata.
+  deterministic router and are logged only as error-type metadata. Router usage
+  and cost estimates use the same configurable chat token rates as RAG answer
+  generation.

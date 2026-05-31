@@ -125,7 +125,9 @@ runner checks `/health` and refuses this dataset unless
 `dependencies.agent_router` is `llm`, preventing accidental execution against
 the deterministic default. The current LLM-router dataset intentionally avoids
 answer-path RAG cases so the first router eval spends only route-classification
-tokens and keeps n8n simulated.
+tokens and keeps n8n simulated. Agent eval reports include aggregated router
+prompt tokens, completion tokens, total tokens, and estimated router cost when
+the API response includes router usage.
 
 For a single controlled live n8n check, use:
 
@@ -166,3 +168,5 @@ status, human-approval flag, email-draft expectation, answer fallback contract,
 retrieval status, source count, source titles, or forbidden completed action
 does not match the dataset. When `--document-manifest-path` is provided, source
 titles in the dataset are resolved to document IDs before the request is sent.
+The runner also records router provider/model metadata and aggregates router
+usage/cost when available.

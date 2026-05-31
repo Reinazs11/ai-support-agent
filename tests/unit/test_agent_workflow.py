@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 from app.agents.routing import (
     AgentRouteDecision,
     AgentRouterProviderError,
+    AgentRouteTokenUsage,
     FallbackAgentRouter,
 )
 from app.agents.schemas import AgentRequest
@@ -194,6 +195,13 @@ async def test_llm_router_can_route_auto_mode_to_ticket_workflow() -> None:
             route="classify_ticket",
             provider="fake-llm",
             rationale="support_follow_up",
+            model="fake-router",
+            usage=AgentRouteTokenUsage(
+                prompt_tokens=100,
+                completion_tokens=20,
+                total_tokens=120,
+                estimated_cost_usd=0.000045,
+            ),
         )
     )
     router = FallbackAgentRouter(primary=route_model)
@@ -206,6 +214,14 @@ async def test_llm_router_can_route_auto_mode_to_ticket_workflow() -> None:
     assert response.route == "classify_ticket"
     assert response.ticket is not None
     assert response.email_draft is not None
+    assert response.router is not None
+    assert response.router.provider == "fake-llm"
+    assert response.router.model == "fake-router"
+    assert response.router.usage is not None
+    assert response.router.usage.prompt_tokens == 100
+    assert response.router.usage.completion_tokens == 20
+    assert response.router.usage.total_tokens == 120
+    assert response.router.usage.estimated_cost_usd == 0.000045
 
 
 async def test_llm_router_failure_falls_back_to_deterministic_routing(
@@ -231,6 +247,8 @@ async def test_llm_router_failure_falls_back_to_deterministic_routing(
     assert metadata["router_rationale"] == "ticket_signal_terms"
     assert metadata["router_fallback_reason"] == "AgentRouterProviderError"
     assert metadata["router_latency_ms"] >= 0
+    assert metadata["router_prompt_tokens"] is None
+    assert metadata["router_estimated_cost_usd"] is None
 
 
 async def test_llm_router_invalid_answer_falls_back_to_answer_route() -> None:
@@ -276,6 +294,10 @@ async def test_ticket_workflow_logs_structured_audit_without_message_content(
     assert metadata["router_rationale"] == "explicit_ticket_mode"
     assert metadata["router_fallback_reason"] is None
     assert metadata["router_latency_ms"] >= 0
+    assert metadata["router_prompt_tokens"] is None
+    assert metadata["router_completion_tokens"] is None
+    assert metadata["router_total_tokens"] is None
+    assert metadata["router_estimated_cost_usd"] is None
     assert metadata["customer_tier_present"] is True
     assert metadata["action_names"] == [
         "classify_ticket",
