@@ -25,6 +25,16 @@ The `dependencies.agent_router` value is one of:
 - `llm_missing_api_key`: LLM routing is selected but no chat/OpenAI API key is
   configured.
 
+The `dependencies.langfuse` value is one of:
+
+- `disabled`: tracing export is disabled.
+- `configured`: Langfuse tracing export is enabled and credentials are present.
+- `missing_credentials`: tracing export is enabled but one or more Langfuse
+  credentials are missing.
+
+This endpoint reports configuration readiness. It is not yet a deep connectivity
+check for PostgreSQL, Qdrant, OpenAI, n8n, or Langfuse.
+
 ## POST /documents
 
 Accepts multipart upload under field `file`.

@@ -75,6 +75,7 @@ Implemented:
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
 - Architecture, API, evaluation, safety, and limitation docs.
+- Deployment readiness documentation for demo-style hosting boundaries.
 - Initial pytest coverage.
 
 Still pending:
@@ -394,3 +395,4 @@ citations, evaluation, cost, latency, and operational safety.
 - [`docs/evaluation-plan.md`](docs/evaluation-plan.md)
 - [`docs/responsible-ai-safety.md`](docs/responsible-ai-safety.md)
 - [`docs/known-limitations.md`](docs/known-limitations.md)
+- [`docs/deployment-readiness.md`](docs/deployment-readiness.md)

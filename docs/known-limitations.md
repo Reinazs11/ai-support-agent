@@ -52,4 +52,7 @@
   no queryable audit table, dashboard setup guide, sampling policy, or deployed
   observability stack yet.
 - Authentication, authorization, rate limits, and file retention are not implemented.
-- Public deployment configuration is not complete.
+- Deployment readiness is documented for a demo backend, but public deployment
+  is not production complete. There is no platform-specific hosting guide,
+  secret-manager integration, deep readiness endpoint, object storage, retention
+  workflow, authentication, authorization, or rate limiting.

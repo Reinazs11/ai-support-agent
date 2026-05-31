@@ -18,6 +18,7 @@ def test_health_contract(monkeypatch) -> None:
     assert "dependencies" in body
     assert body["dependencies"]["n8n"] == "simulated"
     assert body["dependencies"]["agent_router"] == "deterministic"
+    assert body["dependencies"]["langfuse"] == "disabled"
     get_settings.cache_clear()
 
 
@@ -105,4 +106,31 @@ def test_health_reports_llm_agent_router_blockers(monkeypatch) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["dependencies"]["agent_router"] == "llm_missing_api_key"
+    get_settings.cache_clear()
+
+
+def test_health_reports_langfuse_configuration_state(monkeypatch) -> None:
+    get_settings.cache_clear()
+    monkeypatch.setenv("LANGFUSE_ENABLED", "true")
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
+    client = TestClient(create_app())
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dependencies"]["langfuse"] == "missing_credentials"
+    get_settings.cache_clear()
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-test")
+    client = TestClient(create_app())
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dependencies"]["langfuse"] == "configured"
     get_settings.cache_clear()

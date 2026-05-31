@@ -24,6 +24,12 @@ async def healthcheck() -> HealthResponse:
             agent_router_status = "llm_chat_provider_disabled"
         elif not (settings.chat_api_key or settings.openai_api_key):
             agent_router_status = "llm_missing_api_key"
+    langfuse_status = "disabled"
+    if settings.langfuse_enabled:
+        if settings.langfuse_public_key and settings.langfuse_secret_key:
+            langfuse_status = "configured"
+        else:
+            langfuse_status = "missing_credentials"
     return HealthResponse(
         status="ok",
         app=settings.app_name,
@@ -34,5 +40,6 @@ async def healthcheck() -> HealthResponse:
             "openai": "configured" if openai_configured else "missing_api_key",
             "n8n": n8n_status,
             "agent_router": agent_router_status,
+            "langfuse": langfuse_status,
         },
     )
