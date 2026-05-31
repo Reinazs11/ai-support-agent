@@ -28,8 +28,11 @@
   network-dispatch blockers are logged without exposing the webhook URL, user
   message, or email body. LLM-assisted routing is opt-in, not evaluated as a
   production-quality semantic router yet, and falls back to deterministic
-  routing on provider/configuration/parse errors. Router usage and cost are
-  reported only when the provider returns token usage.
+  routing on provider/configuration/parse errors. A May 31, 2026 guarded
+  LLM-router eval passed 3/3 ambiguous ticket-like cases at very low estimated
+  cost, but that dataset is still too small to justify making LLM routing the
+  default. Router usage and cost are reported only when the provider returns
+  token usage.
   External business actions remain simulated or human-approved by default.
 - The evaluation suite has an initial deterministic `/agent/respond` workflow
   eval for ticket routes, action sequencing, email-draft approval, and workflow
