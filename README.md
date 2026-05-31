@@ -211,6 +211,9 @@ Invoke-RestMethod http://localhost:8000/health
 
 The `dependencies.n8n` value reports whether n8n dispatch is `simulated`,
 `disabled`, fully `live`, or blocked by missing URL or required human approval.
+The `dependencies.agent_router` value reports whether agent routing is using
+the deterministic default, is ready for `llm`, or is blocked by chat provider/API
+key configuration.
 
 Check OpenAI configuration without printing secrets:
 
@@ -303,6 +306,17 @@ known source documents:
 
 This still should be treated as a controlled eval run because it uses the local
 RAG configuration behind `/agent/respond`.
+
+There is also an optional LLM-router dataset for ambiguous ticket-like requests:
+
+```powershell
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_router_llm.jsonl
+```
+
+Run it only when you intentionally configured `AGENT_ROUTER_PROVIDER=llm`. The
+runner checks `/health` first and refuses the dataset unless
+`dependencies.agent_router` is `llm`. These cases still keep n8n simulated and
+do not require answer-path RAG calls.
 
 The initial dataset lives at `evals/initial_rag.jsonl` and uses the committed
 synthetic and public-source corpus under `evals/corpus/`. Public-source snapshots

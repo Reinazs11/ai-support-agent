@@ -116,13 +116,16 @@ validate answer-mode disabled-provider behavior through
 `evals/agent_answer_disabled.jsonl` and seeded-corpus answer behavior through
 `evals/agent_answer_seeded.jsonl`, but optional answer datasets should be run
 only when the local API configuration is known not to call live providers unless
-explicitly desired. A controlled live n8n smoke test helper is also available;
-it checks `/health` first and refuses to run unless n8n is fully `live`.
+explicitly desired. The optional `evals/agent_router_llm.jsonl` dataset covers
+ambiguous ticket-like auto-mode requests for the LLM router and is guarded by a
+`/health` preflight that requires `dependencies.agent_router=llm`. A controlled
+live n8n smoke test helper is also available; it checks `/health` first and
+refuses to run unless n8n is fully `live`.
 
 Recommended next increments:
 
-1. Expand the agent eval dataset with ambiguous routing cases before making
-   LLM routing part of any default or demo path.
+1. Run the optional LLM-router eval only when intentionally measuring the live
+   router cost/latency trade-off.
 2. Consider real LLM-as-judge/Ragas only after the workflow targets are stable
    enough that the extra cost measures useful behavior.
 

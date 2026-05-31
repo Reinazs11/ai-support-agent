@@ -16,6 +16,15 @@ The `dependencies.n8n` value is one of:
 - `human_approval_required`: live mode is selected but human approval still
   blocks dispatch.
 
+The `dependencies.agent_router` value is one of:
+
+- `deterministic`: default no-provider route selection.
+- `llm`: LLM-assisted route selection is configured and has API credentials.
+- `llm_chat_provider_disabled`: LLM routing is selected but chat provider is not
+  OpenAI.
+- `llm_missing_api_key`: LLM routing is selected but no chat/OpenAI API key is
+  configured.
+
 ## POST /documents
 
 Accepts multipart upload under field `file`.

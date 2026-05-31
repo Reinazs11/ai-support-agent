@@ -78,6 +78,7 @@ function Show-Help {
     Write-Host "  .\scripts\dev.ps1 eval"
     Write-Host "  .\scripts\dev.ps1 agent-eval"
     Write-Host "  .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json"
+    Write-Host "  .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_router_llm.jsonl"
 }
 
 switch ($Command) {

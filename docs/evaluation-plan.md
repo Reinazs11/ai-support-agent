@@ -119,6 +119,13 @@ LLM-assisted agent routing is currently opt-in and is not part of the default
 agent eval baseline. Before using it in a demo or making it the default, add
 ambiguous auto-mode routing cases and compare deterministic vs. LLM router
 behavior with explicit cost and latency reporting.
+The optional `evals/agent_router_llm.jsonl` dataset contains ambiguous
+ticket-like auto-mode requests that require `AGENT_ROUTER_PROVIDER=llm`. The
+runner checks `/health` and refuses this dataset unless
+`dependencies.agent_router` is `llm`, preventing accidental execution against
+the deterministic default. The current LLM-router dataset intentionally avoids
+answer-path RAG cases so the first router eval spends only route-classification
+tokens and keeps n8n simulated.
 
 For a single controlled live n8n check, use:
 
@@ -140,6 +147,7 @@ Current runner:
 .\scripts\dev.ps1 n8n-smoke
 .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_disabled.jsonl
 .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_answer_seeded.jsonl -AgentEvalManifestPath reports/evals/eval-corpus-manifest.json
+.\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_router_llm.jsonl
 ```
 
 The seed script uploads and ingests the eval corpus through the local API, then
