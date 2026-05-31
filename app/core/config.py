@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     agent_router_provider: Literal["deterministic", "llm"] = "deterministic"
     agent_router_model: str = ""
 
+    langfuse_enabled: bool = False
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"

@@ -111,6 +111,59 @@ class FakeWebhookHttpClient:
         return WebhookHttpResponse(status_code=200)
 
 
+class CapturingTracer:
+    def __init__(self) -> None:
+        self.spans: list[dict[str, object]] = []
+
+    def span(
+        self,
+        name: str,
+        *,
+        span_type: str = "span",
+        metadata: dict[str, object] | None = None,
+    ) -> "CapturingTraceSpan":
+        record: dict[str, object] = {
+            "name": name,
+            "span_type": span_type,
+            "metadata": metadata or {},
+            "updates": [],
+        }
+        self.spans.append(record)
+        return CapturingTraceSpan(record)
+
+
+class CapturingTraceSpan:
+    def __init__(self, record: dict[str, object]) -> None:
+        self.record = record
+
+    def __enter__(self) -> "CapturingTraceSpan":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+        if exc_type is not None:
+            self.record["error_type"] = getattr(exc_type, "__name__", str(exc_type))
+        return False
+
+    def update(
+        self,
+        *,
+        metadata: dict[str, object] | None = None,
+        output: dict[str, object] | None = None,
+        level: str | None = None,
+        status_message: str | None = None,
+    ) -> None:
+        updates = self.record["updates"]
+        assert isinstance(updates, list)
+        updates.append(
+            {
+                "metadata": metadata or {},
+                "output": output or {},
+                "level": level,
+                "status_message": status_message,
+            }
+        )
+
+
 def build_test_session() -> Session:
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -252,6 +305,43 @@ async def test_llm_router_can_route_auto_mode_to_ticket_workflow() -> None:
     assert response.router.usage.completion_tokens == 20
     assert response.router.usage.total_tokens == 120
     assert response.router.usage.estimated_cost_usd == 0.000045
+
+
+async def test_agent_workflow_records_content_minimized_trace_spans() -> None:
+    tracer = CapturingTracer()
+    sensitive_message = "Please have support follow up about account SECRET123."
+    route_model = FakeRouteModelService(
+        decision=AgentRouteDecision(
+            route="classify_ticket",
+            provider="fake-llm",
+            rationale="support_follow_up",
+            model="fake-router",
+            usage=AgentRouteTokenUsage(
+                prompt_tokens=100,
+                completion_tokens=20,
+                total_tokens=120,
+                estimated_cost_usd=0.000045,
+            ),
+        )
+    )
+    router = FallbackAgentRouter(primary=route_model)
+
+    response = await AgentWorkflowService(
+        router=router,
+        tracer=tracer,
+    ).run(AgentRequest(message=sensitive_message))
+
+    assert response.route == "classify_ticket"
+    assert [span["name"] for span in tracer.spans] == [
+        "agent.workflow",
+        "agent.router",
+    ]
+    serialized_spans = json.dumps(tracer.spans)
+    assert sensitive_message not in serialized_spans
+    assert "SECRET123" not in serialized_spans
+    assert '"route": "classify_ticket"' in serialized_spans
+    assert '"provider": "fake-llm"' in serialized_spans
+    assert '"total_tokens": 120' in serialized_spans
 
 
 async def test_llm_router_failure_falls_back_to_deterministic_routing(

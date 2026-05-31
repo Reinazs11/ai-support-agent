@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from app.core.config import Settings
@@ -86,6 +88,59 @@ class FakeChatModelService:
         if self.unexpected_exception is not None:
             raise self.unexpected_exception
         return ChatModelResult(answer=self.answer, model=self.model, usage=self.usage)
+
+
+class CapturingTracer:
+    def __init__(self) -> None:
+        self.spans: list[dict[str, object]] = []
+
+    def span(
+        self,
+        name: str,
+        *,
+        span_type: str = "span",
+        metadata: dict[str, object] | None = None,
+    ) -> "CapturingTraceSpan":
+        record: dict[str, object] = {
+            "name": name,
+            "span_type": span_type,
+            "metadata": metadata or {},
+            "updates": [],
+        }
+        self.spans.append(record)
+        return CapturingTraceSpan(record)
+
+
+class CapturingTraceSpan:
+    def __init__(self, record: dict[str, object]) -> None:
+        self.record = record
+
+    def __enter__(self) -> "CapturingTraceSpan":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+        if exc_type is not None:
+            self.record["error_type"] = getattr(exc_type, "__name__", str(exc_type))
+        return False
+
+    def update(
+        self,
+        *,
+        metadata: dict[str, object] | None = None,
+        output: dict[str, object] | None = None,
+        level: str | None = None,
+        status_message: str | None = None,
+    ) -> None:
+        updates = self.record["updates"]
+        assert isinstance(updates, list)
+        updates.append(
+            {
+                "metadata": metadata or {},
+                "output": output or {},
+                "level": level,
+                "status_message": status_message,
+            }
+        )
 
 
 @pytest.mark.asyncio
@@ -183,6 +238,45 @@ async def test_chat_generates_answer_from_retrieved_chunks() -> None:
     assert response.answer == "Refunds are available within 30 days."
     assert response.usage is None
     assert chat_model_service.requests == [("What is the refund policy?", [result])]
+
+
+@pytest.mark.asyncio
+async def test_chat_records_content_minimized_trace_spans() -> None:
+    sensitive_question = "What is the refund policy for account SECRET123?"
+    sensitive_chunk_text = "Refunds are available within 30 days for token SECRET123."
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text=sensitive_chunk_text,
+        score=0.92,
+    )
+    tracer = CapturingTracer()
+    service = RagService(
+        settings=Settings(retrieval_top_k=5),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=FakeChatModelService(),
+        tracer=tracer,
+    )
+
+    response = await service.answer(ChatRequest(question=sensitive_question, top_k=2))
+
+    assert response.retrieval_status == "generated"
+    assert [span["name"] for span in tracer.spans] == [
+        "rag.answer",
+        "rag.embedding",
+        "rag.vector_search",
+        "rag.context_limit",
+        "rag.generation",
+    ]
+    serialized_spans = json.dumps(tracer.spans)
+    assert sensitive_question not in serialized_spans
+    assert sensitive_chunk_text not in serialized_spans
+    assert "SECRET123" not in serialized_spans
+    assert '"retrieval_status": "generated"' in serialized_spans
+    assert '"source_count": 1' in serialized_spans
 
 
 @pytest.mark.asyncio

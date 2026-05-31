@@ -38,13 +38,16 @@ tickets, and later executes controlled workflows with LangGraph.
    for the sources actually retrieved.
 7. Logs record top-k, retrieved count, context count, context size, truncation,
    source IDs and scores, model names, provider error type, latency, token
-   counts, and estimated cost when cost rates are configured. Tracing is still
-   planned.
+   counts, and estimated cost when cost rates are configured. Optional Langfuse
+   tracing records content-minimized RAG spans for answer flow, embedding,
+   vector search, context limiting, and generation.
 8. Agent workflow logs record workflow run IDs, route, router provider/model,
    router rationale, router fallback reason, router latency, router token/cost
    estimates, action names/statuses, ticket IDs, approval-required flags, source
    counts, and workflow latency. They intentionally omit user message content,
    generated answers, retrieved context, and email draft bodies.
+   Optional Langfuse tracing follows the same content-minimization rule for
+   agent workflow and router spans.
 
 ## Key Decisions
 
@@ -67,6 +70,10 @@ tickets, and later executes controlled workflows with LangGraph.
   enabling live external automation such as n8n webhooks.
 - Workflow audit logs should be structured and content-minimized before adding
   external side effects or richer tracing.
+- Tracing is opt-in through `LANGFUSE_ENABLED=true` plus Langfuse credentials.
+  Default local development and tests use a no-op tracer. Traces must not store
+  full prompts, user messages, retrieved chunks, generated answers, webhook
+  URLs, or email bodies.
 - n8n integration defaults to a simulated action with a safe payload summary.
   Live dispatch uses the same minimized payload, timeout, retry settings, and
   content-minimized logs without recording the webhook URL or response body.

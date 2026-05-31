@@ -146,3 +146,13 @@ Recommended next increments:
 - Integrate Langfuse traces around LLM calls and retrieval.
 - Add deployment documentation and environment examples.
 - Publish docs for known limitations, safety, and evaluation results.
+
+Status: started. A content-minimized tracing layer is available with a no-op
+default and optional Langfuse exporter behind `LANGFUSE_ENABLED=true` plus
+Langfuse credentials. RAG traces cover answer flow, embedding, vector search,
+context limiting, and generation. Agent traces cover workflow execution and
+router decisions. Traces record statuses, counts, model names, token usage,
+cost estimates, and operational IDs, but not prompts, retrieved chunk text,
+generated answers, user messages, webhook URLs, or email bodies. Richer
+dashboards, trace sampling policy, deployment docs, and public demo docs remain
+pending Phase 7 work.

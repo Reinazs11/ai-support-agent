@@ -47,8 +47,9 @@
   a single controlled webhook dispatch. There is no always-on live n8n
   integration test, persistent audit trail storage, or broad live LLM-assisted
   routing evaluation baseline.
-- Agent workflow audit logs are structured and content-minimized, but they are
-  emitted as application logs only. There is no queryable audit table or trace
-  dashboard yet.
+- Agent workflow audit logs are structured and content-minimized. Optional
+  Langfuse tracing is available for RAG and agent workflow spans, but there is
+  no queryable audit table, dashboard setup guide, sampling policy, or deployed
+  observability stack yet.
 - Authentication, authorization, rate limits, and file retention are not implemented.
 - Public deployment configuration is not complete.

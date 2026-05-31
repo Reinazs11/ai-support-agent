@@ -19,6 +19,7 @@ from app.agents.state import AgentState
 from app.agents.webhooks import WebhookDispatchService
 from app.core.config import get_settings
 from app.db.models import Ticket
+from app.observability.tracing import Tracer, build_tracer
 from app.rag.schemas import ChatRequest, ChatUsageEstimate
 from app.rag.service import RagService
 from app.tickets.classifier import classify_ticket_text
@@ -33,11 +34,14 @@ class AgentWorkflowService:
         webhook_service: WebhookDispatchService | None = None,
         router: AgentRouter | None = None,
         session: Session | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
+        settings = get_settings()
         self.rag_service = rag_service or RagService()
         self.webhook_service = webhook_service or WebhookDispatchService()
-        self.router = router or build_agent_router(get_settings())
+        self.router = router or build_agent_router(settings)
         self.session = session
+        self.tracer = tracer or build_tracer(settings)
         self.workflow = self._build_workflow()
 
     async def run(self, request: AgentRequest) -> AgentResponse:
@@ -54,7 +58,31 @@ class AgentWorkflowService:
             "human_approval_required": False,
         }
         try:
-            state = await self.workflow.ainvoke(initial_state)
+            with self.tracer.span(
+                "agent.workflow",
+                span_type="agent",
+                metadata={
+                    "workflow_run_id": workflow_run_id,
+                    "mode": request.mode,
+                    "top_k": request.top_k,
+                    "document_filter_count": len(request.document_ids),
+                    "customer_tier_present": request.customer_tier is not None,
+                },
+            ) as span:
+                state = await self.workflow.ainvoke(initial_state)
+                response = self._response_from_state(state)
+                span.update(
+                    output={
+                        "route": response.route,
+                        "human_approval_required": response.human_approval_required,
+                        "action_count": len(response.actions),
+                        "ticket_created": response.ticket is not None,
+                        "retrieval_status": response.retrieval_status,
+                        "source_count": len(response.sources),
+                        "router_provider": state.get("router_provider"),
+                        "router_fallback_reason": state.get("router_fallback_reason"),
+                    }
+                )
         except Exception as exc:
             self._log_workflow_failed(
                 request=request,
@@ -64,7 +92,6 @@ class AgentWorkflowService:
             )
             raise
 
-        response = self._response_from_state(state)
         self._log_workflow_completed(
             request=request,
             response=response,
@@ -110,10 +137,43 @@ class AgentWorkflowService:
 
     async def _route_request(self, state: AgentState) -> dict[str, object]:
         started = perf_counter()
-        decision = await self.router.route(
-            message=state["user_message"],
-            mode=state.get("mode", "auto"),
-        )
+        with self.tracer.span(
+            "agent.router",
+            metadata={
+                "mode": state.get("mode", "auto"),
+                "workflow_run_id": state.get("workflow_run_id"),
+            },
+        ) as span:
+            decision = await self.router.route(
+                message=state["user_message"],
+                mode=state.get("mode", "auto"),
+            )
+            span.update(
+                output={
+                    "route": decision.route,
+                    "provider": decision.provider,
+                    "model": decision.model,
+                    "fallback_reason": decision.fallback_reason,
+                    "prompt_tokens": (
+                        decision.usage.prompt_tokens
+                        if decision.usage is not None
+                        else None
+                    ),
+                    "completion_tokens": (
+                        decision.usage.completion_tokens
+                        if decision.usage is not None
+                        else None
+                    ),
+                    "total_tokens": (
+                        decision.usage.total_tokens if decision.usage is not None else None
+                    ),
+                    "estimated_cost_usd": (
+                        decision.usage.estimated_cost_usd
+                        if decision.usage is not None
+                        else None
+                    ),
+                }
+            )
         return {
             "route": decision.route,
             "router_provider": decision.provider,

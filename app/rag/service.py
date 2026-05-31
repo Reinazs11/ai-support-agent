@@ -4,6 +4,7 @@ from time import perf_counter
 import structlog
 
 from app.core.config import Settings, get_settings
+from app.observability.tracing import Tracer, build_tracer
 from app.rag.chat_models import (
     INSUFFICIENT_CONTEXT_ANSWER,
     ChatModelProviderError,
@@ -30,15 +31,54 @@ class RagService:
         embedding_service: EmbeddingService | None = None,
         vector_store: VectorStore | None = None,
         chat_model_service: ChatModelService | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.embedding_service = embedding_service or build_embedding_service(self.settings)
         self.vector_store = vector_store
         self.chat_model_service = chat_model_service or build_chat_model_service(self.settings)
+        self.tracer = tracer or build_tracer(self.settings)
         if self.vector_store is None and self.embedding_service is not None:
             self.vector_store = QdrantVectorStore(url=self.settings.qdrant_url)
 
     async def answer(self, request: ChatRequest) -> ChatResponse:
+        with self.tracer.span(
+            "rag.answer",
+            span_type="chain",
+            metadata={
+                "top_k": request.top_k or self.settings.retrieval_top_k,
+                "document_filter_count": len(request.document_ids),
+                "embedding_provider": self.settings.embedding_provider,
+                "chat_provider": self.settings.chat_provider,
+            },
+        ) as span:
+            response = await self._answer(request)
+            span.update(
+                output={
+                    "retrieval_status": response.retrieval_status,
+                    "confidence": response.confidence,
+                    "source_count": len(response.sources),
+                    "prompt_tokens": (
+                        response.usage.prompt_tokens if response.usage is not None else None
+                    ),
+                    "completion_tokens": (
+                        response.usage.completion_tokens
+                        if response.usage is not None
+                        else None
+                    ),
+                    "total_tokens": (
+                        response.usage.total_tokens if response.usage is not None else None
+                    ),
+                    "estimated_cost_usd": (
+                        response.usage.estimated_cost_usd
+                        if response.usage is not None
+                        else None
+                    ),
+                }
+            )
+            return response
+
+    async def _answer(self, request: ChatRequest) -> ChatResponse:
         if self.embedding_service is None or self.vector_store is None:
             return ChatResponse(
                 answer=(
@@ -51,7 +91,15 @@ class RagService:
             )
 
         try:
-            question_vectors = await self.embedding_service.embed_texts([request.question])
+            with self.tracer.span(
+                "rag.embedding",
+                span_type="embedding",
+                metadata={"embedding_provider": self.settings.embedding_provider},
+            ) as span:
+                question_vectors = await self.embedding_service.embed_texts(
+                    [request.question]
+                )
+                span.update(output={"vector_count": len(question_vectors)})
         except EmbeddingConfigurationError as exc:
             self._log_embedding_unavailable(top_k=request.top_k, error_type=type(exc).__name__)
             return ChatResponse(
@@ -85,12 +133,22 @@ class RagService:
 
         top_k = request.top_k or self.settings.retrieval_top_k
         retrieval_started = perf_counter()
-        retrieved_chunks = self.vector_store.search_similar(
-            collection_name=self.settings.qdrant_collection,
-            vector=question_vectors[0],
-            limit=top_k,
-            document_ids=request.document_ids,
-        )
+        with self.tracer.span(
+            "rag.vector_search",
+            span_type="retriever",
+            metadata={
+                "collection": self.settings.qdrant_collection,
+                "top_k": top_k,
+                "document_filter_count": len(request.document_ids),
+            },
+        ) as span:
+            retrieved_chunks = self.vector_store.search_similar(
+                collection_name=self.settings.qdrant_collection,
+                vector=question_vectors[0],
+                limit=top_k,
+                document_ids=request.document_ids,
+            )
+            span.update(output={"retrieved_count": len(retrieved_chunks)})
         retrieval_latency_ms = (perf_counter() - retrieval_started) * 1000
         if not retrieved_chunks:
             self._log_chat_result(
@@ -110,9 +168,23 @@ class RagService:
                 retrieval_status="no_results",
             )
 
-        context_chunks, context_chars, context_truncated = self._limit_context_chunks(
-            retrieved_chunks
-        )
+        with self.tracer.span(
+            "rag.context_limit",
+            metadata={
+                "retrieved_count": len(retrieved_chunks),
+                "context_max_chars": self.settings.rag_context_max_chars,
+            },
+        ) as span:
+            context_chunks, context_chars, context_truncated = self._limit_context_chunks(
+                retrieved_chunks
+            )
+            span.update(
+                output={
+                    "context_source_count": len(context_chunks),
+                    "context_chars": context_chars,
+                    "context_truncated": context_truncated,
+                }
+            )
         if not context_chunks:
             self._log_chat_result(
                 status="insufficient_context",
@@ -164,10 +236,45 @@ class RagService:
 
         generation_started = perf_counter()
         try:
-            model_result = await self.chat_model_service.generate_answer(
-                question=request.question,
-                chunks=context_chunks,
-            )
+            with self.tracer.span(
+                "rag.generation",
+                span_type="generation",
+                metadata={
+                    "chat_provider": self.settings.chat_provider,
+                    "chat_model": (
+                        self.chat_model_service.model
+                        or self.settings.chat_model
+                        or self.settings.openai_chat_model
+                    ),
+                    "context_source_count": len(sources),
+                    "context_chars": context_chars,
+                    "context_truncated": context_truncated,
+                },
+            ) as span:
+                model_result = await self.chat_model_service.generate_answer(
+                    question=request.question,
+                    chunks=context_chunks,
+                )
+                span.update(
+                    output={
+                        "model": model_result.model,
+                        "prompt_tokens": (
+                            model_result.usage.prompt_tokens
+                            if model_result.usage is not None
+                            else None
+                        ),
+                        "completion_tokens": (
+                            model_result.usage.completion_tokens
+                            if model_result.usage is not None
+                            else None
+                        ),
+                        "total_tokens": (
+                            model_result.usage.total_tokens
+                            if model_result.usage is not None
+                            else None
+                        ),
+                    }
+                )
         except ChatModelProviderError as exc:
             generation_latency_ms = (perf_counter() - generation_started) * 1000
             self._log_chat_result(

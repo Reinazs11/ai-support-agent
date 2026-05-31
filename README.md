@@ -67,6 +67,10 @@ Implemented:
   names/statuses, ticket IDs, approval flags, router metadata, source counts,
   router token/cost estimates, router latency, and workflow latency without
   logging user message content or email bodies.
+- Optional Langfuse tracing for RAG answer flow and agent workflow routing.
+  Tracing is disabled by default and records content-minimized metadata only:
+  statuses, counts, model names, token usage, cost estimates, and operational
+  IDs, not prompts, retrieved chunks, answers, user messages, or email bodies.
 - Deterministic services for chunking and initial ticket classification.
 - SQLAlchemy model draft for the main domain entities.
 - Docker Compose services for PostgreSQL and Qdrant.
@@ -77,7 +81,7 @@ Still pending:
 
 - Object storage or durable file retention policy for uploaded documents.
 - Persistent workflow audit trail storage.
-- Langfuse tracing and richer observability dashboards.
+- Richer observability dashboards and stored audit trails.
 - Broader LLM-router evaluation before considering it as the default route
   selector.
 - Deployment setup.
