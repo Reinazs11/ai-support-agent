@@ -21,6 +21,7 @@ The portfolio baseline is functionally complete for local demo/readiness:
 - Deterministic RAG and agent workflow eval runners with Markdown/JSON reports.
 - Optional content-minimized Langfuse tracing.
 - Docker Compose for local PostgreSQL and Qdrant.
+- GitHub Actions CI for Python checks and Docker image build validation.
 - Deployment readiness and safe local demo documentation.
 
 Not production complete:

@@ -21,6 +21,7 @@ This checklist summarizes the current project state for portfolio review.
 - Agent workflow evaluation datasets and reports.
 - Content-minimized structured logs.
 - Optional content-minimized Langfuse tracing.
+- GitHub Actions CI for compile, test, lint, and Docker build checks.
 - Deployment readiness documentation.
 - Safe local demo guide.
 
