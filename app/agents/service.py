@@ -61,6 +61,13 @@ class AgentWorkflowService:
             with self.tracer.span(
                 "agent.workflow",
                 span_type="agent",
+                input={
+                    "message_chars": len(request.message),
+                    "mode": request.mode,
+                    "top_k": request.top_k,
+                    "document_filter_count": len(request.document_ids),
+                    "customer_tier_present": request.customer_tier is not None,
+                },
                 metadata={
                     "workflow_run_id": workflow_run_id,
                     "mode": request.mode,
@@ -155,24 +162,21 @@ class AgentWorkflowService:
                     "model": decision.model,
                     "fallback_reason": decision.fallback_reason,
                     "prompt_tokens": (
-                        decision.usage.prompt_tokens
-                        if decision.usage is not None
-                        else None
+                        decision.usage.prompt_tokens if decision.usage is not None else None
                     ),
                     "completion_tokens": (
-                        decision.usage.completion_tokens
-                        if decision.usage is not None
-                        else None
+                        decision.usage.completion_tokens if decision.usage is not None else None
                     ),
                     "total_tokens": (
                         decision.usage.total_tokens if decision.usage is not None else None
                     ),
                     "estimated_cost_usd": (
-                        decision.usage.estimated_cost_usd
-                        if decision.usage is not None
-                        else None
+                        decision.usage.estimated_cost_usd if decision.usage is not None else None
                     ),
-                }
+                },
+                model=decision.model,
+                usage_details=_router_langfuse_usage_details(decision.usage),
+                cost_details=_router_langfuse_cost_details(decision.usage),
             )
         return {
             "route": decision.route,
@@ -272,9 +276,7 @@ class AgentWorkflowService:
             ]
         )
         return {
-            "route": "human_escalation"
-            if state["ticket_should_escalate"]
-            else "classify_ticket",
+            "route": "human_escalation" if state["ticket_should_escalate"] else "classify_ticket",
             "email_subject": email_subject,
             "email_body": email_body,
             "email_requires_approval": True,
@@ -314,9 +316,7 @@ class AgentWorkflowService:
                 "timeout_seconds": dispatch.dispatch_policy.timeout_seconds,
                 "max_retries": dispatch.dispatch_policy.max_retries,
                 "requires_human_approval": dispatch.dispatch_policy.requires_human_approval,
-                "network_dispatch_allowed": (
-                    dispatch.dispatch_policy.network_dispatch_allowed
-                ),
+                "network_dispatch_allowed": (dispatch.dispatch_policy.network_dispatch_allowed),
                 "network_dispatch_blockers": list(
                     dispatch.dispatch_policy.network_dispatch_blockers
                 ),
@@ -437,8 +437,7 @@ class AgentWorkflowService:
             ),
             action_names=[action.name for action in response.actions],
             action_statuses=[
-                {"name": action.name, "status": action.status}
-                for action in response.actions
+                {"name": action.name, "status": action.status} for action in response.actions
             ],
             ticket_id=response.ticket.id if response.ticket is not None else None,
             ticket_status=response.ticket.status if response.ticket is not None else None,
@@ -482,6 +481,22 @@ def _router_usage_estimate(usage: Any) -> ChatUsageEstimate | None:
         total_tokens=usage.total_tokens,
         estimated_cost_usd=usage.estimated_cost_usd,
     )
+
+
+def _router_langfuse_usage_details(usage: Any) -> dict[str, int] | None:
+    if usage is None:
+        return None
+    return {
+        "input": usage.prompt_tokens,
+        "output": usage.completion_tokens,
+        "total": usage.total_tokens,
+    }
+
+
+def _router_langfuse_cost_details(usage: Any) -> dict[str, float] | None:
+    if usage is None or usage.estimated_cost_usd is None:
+        return None
+    return {"total": usage.estimated_cost_usd}
 
 
 def _email_subject_from_ticket(ticket_subject: str) -> str:

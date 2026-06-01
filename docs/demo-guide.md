@@ -179,7 +179,16 @@ Only enable Langfuse when you intentionally want to show tracing:
 LANGFUSE_ENABLED=true
 LANGFUSE_PUBLIC_KEY=your_public_key
 LANGFUSE_SECRET_KEY=your_secret_key
-LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+```
+
+Use `https://us.cloud.langfuse.com` for Langfuse US Cloud. `LANGFUSE_HOST`
+remains supported for compatibility, but `LANGFUSE_BASE_URL` is preferred.
+
+Verify credentials and export with a metadata-only smoke trace:
+
+```powershell
+.\scripts\dev.ps1 langfuse-smoke
 ```
 
 Expected trace behavior:

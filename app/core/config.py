@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     langfuse_enabled: bool = False
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
+    langfuse_base_url: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
 
 

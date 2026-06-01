@@ -99,12 +99,22 @@ class CapturingTracer:
         name: str,
         *,
         span_type: str = "span",
+        input: dict[str, object] | None = None,
+        output: dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
+        model: str | None = None,
+        usage_details: dict[str, int] | None = None,
+        cost_details: dict[str, float] | None = None,
     ) -> "CapturingTraceSpan":
         record: dict[str, object] = {
             "name": name,
             "span_type": span_type,
+            "input": input or {},
+            "output": output or {},
             "metadata": metadata or {},
+            "model": model,
+            "usage_details": usage_details,
+            "cost_details": cost_details,
             "updates": [],
         }
         self.spans.append(record)
@@ -126,19 +136,27 @@ class CapturingTraceSpan:
     def update(
         self,
         *,
+        input: dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         output: dict[str, object] | None = None,
         level: str | None = None,
         status_message: str | None = None,
+        model: str | None = None,
+        usage_details: dict[str, int] | None = None,
+        cost_details: dict[str, float] | None = None,
     ) -> None:
         updates = self.record["updates"]
         assert isinstance(updates, list)
         updates.append(
             {
+                "input": input or {},
                 "metadata": metadata or {},
                 "output": output or {},
                 "level": level,
                 "status_message": status_message,
+                "model": model,
+                "usage_details": usage_details,
+                "cost_details": cost_details,
             }
         )
 

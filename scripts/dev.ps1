@@ -10,6 +10,7 @@ param(
         "auth",
         "auth-live",
         "smoke",
+        "langfuse-smoke",
         "n8n-smoke",
         "download-corpus",
         "seed-eval",
@@ -116,6 +117,7 @@ function Show-Help {
     Write-Host "  auth       Check OpenAI configuration without an API call"
     Write-Host "  auth-live  Verify OpenAI API access without prompts or documents"
     Write-Host "  smoke      Run the low-cost live RAG smoke test"
+    Write-Host "  langfuse-smoke  Run a content-minimized live Langfuse smoke test"
     Write-Host "  n8n-smoke  Run the controlled live n8n webhook smoke test"
     Write-Host "  download-corpus  Refresh public eval corpus snapshots"
     Write-Host "  seed-eval  Upload and ingest the eval corpus"
@@ -171,6 +173,9 @@ switch ($Command) {
             "--max-cost-usd",
             $SmokeMaxCostUsd.ToString("G", $InvariantCulture)
         )
+    }
+    "langfuse-smoke" {
+        Invoke-External $Python @("-m", "scripts.smoke_langfuse")
     }
     "n8n-smoke" {
         Invoke-External $Python @(
