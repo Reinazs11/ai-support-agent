@@ -35,6 +35,12 @@ $Python = "python"
 if (Test-Path ".\.venv\Scripts\python.exe") {
     $Python = ".\.venv\Scripts\python.exe"
 }
+$DockerComposeCommand = "docker"
+$DockerComposeBaseArgs = @("compose")
+if (Get-Command "docker-compose" -ErrorAction SilentlyContinue) {
+    $DockerComposeCommand = "docker-compose"
+    $DockerComposeBaseArgs = @()
+}
 
 function Invoke-External {
     param(
@@ -51,6 +57,51 @@ function Invoke-External {
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
+}
+
+function Invoke-DockerCompose {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    Invoke-External -FilePath $DockerComposeCommand -Arguments @($DockerComposeBaseArgs + $Arguments)
+}
+
+function Get-DockerComposeOutput {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $composeArgs = @($DockerComposeBaseArgs + $Arguments)
+    & $DockerComposeCommand @composeArgs
+}
+
+function Wait-ForPostgres {
+    param(
+        [int]$TimeoutSeconds = 60
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    Write-Host ""
+    Write-Host "Waiting for local Postgres to become healthy..."
+
+    while ((Get-Date) -lt $deadline) {
+        $statusOutput = (Get-DockerComposeOutput @("ps", "postgres", "--format", "{{.Health}}") 2>$null)
+        $status = ([string]::Join("", $statusOutput)).Trim()
+        if ($LASTEXITCODE -eq 0 -and $status -eq "healthy") {
+            Write-Host "Postgres is healthy."
+            return
+        }
+
+        Start-Sleep -Seconds 2
+    }
+
+    Write-Host ""
+    Write-Host "> $DockerComposeCommand $($DockerComposeBaseArgs + @("ps", "postgres") -join ' ')"
+    Get-DockerComposeOutput @("ps", "postgres")
+    throw "Postgres did not become healthy within $TimeoutSeconds seconds."
 }
 
 function Show-Help {
@@ -86,18 +137,19 @@ switch ($Command) {
         Show-Help
     }
     "infra" {
-        Invoke-External "docker" @("compose", "up", "-d", "postgres", "qdrant")
+        Invoke-DockerCompose @("up", "-d", "postgres", "qdrant")
     }
     "migrate" {
         Invoke-External $Python @("-m", "alembic", "upgrade", "head")
     }
     "api" {
-        Invoke-External $Python @("-m", "uvicorn", "app.main:app", "--reload")
+        Invoke-External $Python @("-m", "uvicorn", "app.main:app", "--reload", "--reload-dir", "app")
     }
     "start" {
-        Invoke-External "docker" @("compose", "up", "-d", "postgres", "qdrant")
+        Invoke-DockerCompose @("up", "-d", "postgres", "qdrant")
+        Wait-ForPostgres
         Invoke-External $Python @("-m", "alembic", "upgrade", "head")
-        Invoke-External $Python @("-m", "uvicorn", "app.main:app", "--reload")
+        Invoke-External $Python @("-m", "uvicorn", "app.main:app", "--reload", "--reload-dir", "app")
     }
     "check" {
         Invoke-External $Python @("-m", "compileall", "app", "scripts", "tests")

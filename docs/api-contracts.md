@@ -58,6 +58,11 @@ Parses the stored document, chunks its text, and persists chunk metadata in
 PostgreSQL. When the configured embedding provider is available, it also
 generates embeddings and indexes chunk vectors in Qdrant.
 
+If embedding generation or Qdrant indexing is unavailable or fails, chunk
+metadata is still persisted and the response returns `status: "ingested"` with
+`vectors_indexed: 0` plus a warning. Chunk `qdrant_point_id` values are only
+stored after vectors are successfully written to Qdrant.
+
 Response:
 
 ```json
@@ -264,6 +269,7 @@ In live mode, `notify_n8n_webhook` can return:
 
 ## POST /evals/run
 
-Placeholder endpoint for future API-triggered evaluation runs. Use
-`python -m scripts.run_eval` for the current controlled local evaluation flow.
-This endpoint should be protected or disabled before public deployment.
+Reserved endpoint for future API-triggered evaluation runs. It currently returns
+HTTP `501 Not Implemented` so it is not mistaken for a working evaluation API.
+Use `python -m scripts.run_eval` for the current controlled local evaluation
+flow. This endpoint should be protected or disabled before public deployment.

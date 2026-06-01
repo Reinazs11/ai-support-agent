@@ -17,8 +17,10 @@
 - The CLI evaluation runner supports deterministic RAG evals plus an optional
   local heuristic semantic judge. The heuristic is not LLM-as-judge or Ragas: it
   scores normalized token overlap, so it can miss contradictions or reject valid
-  answers with different wording. `/evals/run` still returns placeholder results
-  and the committed dataset is intentionally small.
+  answers with different wording. `/evals/run` is reserved for future
+  API-triggered runs and currently returns `501 Not Implemented`; use the CLI
+  runner for controlled local evals. The committed dataset is intentionally
+  small.
 - Agent workflows are starting in Phase 6. The workflow endpoint can route to
   RAG answers or ticket classification and persists internal ticket records.
   Email drafts are deterministic local drafts and are never sent automatically.
