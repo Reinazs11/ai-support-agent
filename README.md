@@ -109,6 +109,7 @@ Optional commands that can call external services:
 ```powershell
 .\scripts\dev.ps1 auth-live
 .\scripts\dev.ps1 smoke
+.\scripts\dev.ps1 langfuse-smoke
 .\scripts\dev.ps1 n8n-smoke
 .\scripts\dev.ps1 agent-eval -AgentEvalDatasetPath evals/agent_router_llm.jsonl
 ```

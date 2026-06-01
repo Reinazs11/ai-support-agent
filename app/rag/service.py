@@ -45,6 +45,11 @@ class RagService:
         with self.tracer.span(
             "rag.answer",
             span_type="chain",
+            input={
+                "question_chars": len(request.question),
+                "top_k": request.top_k or self.settings.retrieval_top_k,
+                "document_filter_count": len(request.document_ids),
+            },
             metadata={
                 "top_k": request.top_k or self.settings.retrieval_top_k,
                 "document_filter_count": len(request.document_ids),
@@ -62,17 +67,13 @@ class RagService:
                         response.usage.prompt_tokens if response.usage is not None else None
                     ),
                     "completion_tokens": (
-                        response.usage.completion_tokens
-                        if response.usage is not None
-                        else None
+                        response.usage.completion_tokens if response.usage is not None else None
                     ),
                     "total_tokens": (
                         response.usage.total_tokens if response.usage is not None else None
                     ),
                     "estimated_cost_usd": (
-                        response.usage.estimated_cost_usd
-                        if response.usage is not None
-                        else None
+                        response.usage.estimated_cost_usd if response.usage is not None else None
                     ),
                 }
             )
@@ -94,11 +95,14 @@ class RagService:
             with self.tracer.span(
                 "rag.embedding",
                 span_type="embedding",
+                model=(
+                    getattr(self.embedding_service, "model", None)
+                    or self.settings.embedding_model
+                    or self.settings.openai_embedding_model
+                ),
                 metadata={"embedding_provider": self.settings.embedding_provider},
             ) as span:
-                question_vectors = await self.embedding_service.embed_texts(
-                    [request.question]
-                )
+                question_vectors = await self.embedding_service.embed_texts([request.question])
                 span.update(output={"vector_count": len(question_vectors)})
         except EmbeddingConfigurationError as exc:
             self._log_embedding_unavailable(top_k=request.top_k, error_type=type(exc).__name__)
@@ -226,9 +230,7 @@ class RagService:
                 sources=sources,
             )
             return ChatResponse(
-                answer=(
-                    "Search found sources, but LLM answer generation is not configured yet."
-                ),
+                answer=("Search found sources, but LLM answer generation is not configured yet."),
                 sources=sources,
                 confidence="low",
                 retrieval_status="generation_not_configured",
@@ -239,6 +241,11 @@ class RagService:
             with self.tracer.span(
                 "rag.generation",
                 span_type="generation",
+                model=(
+                    self.chat_model_service.model
+                    or self.settings.chat_model
+                    or self.settings.openai_chat_model
+                ),
                 metadata={
                     "chat_provider": self.settings.chat_provider,
                     "chat_model": (
@@ -273,7 +280,10 @@ class RagService:
                             if model_result.usage is not None
                             else None
                         ),
-                    }
+                    },
+                    model=model_result.model,
+                    usage_details=self._build_langfuse_usage_details(model_result.usage),
+                    cost_details=self._build_langfuse_cost_details(model_result.usage),
                 )
         except ChatModelProviderError as exc:
             generation_latency_ms = (perf_counter() - generation_started) * 1000
@@ -375,6 +385,32 @@ class RagService:
             total_tokens=usage.total_tokens,
             estimated_cost_usd=estimated_cost_usd,
         )
+
+    def _build_langfuse_usage_details(
+        self,
+        usage: ChatTokenUsage | None,
+    ) -> dict[str, int] | None:
+        if usage is None:
+            return None
+        return {
+            "input": usage.prompt_tokens,
+            "output": usage.completion_tokens,
+            "total": usage.total_tokens,
+        }
+
+    def _build_langfuse_cost_details(
+        self,
+        usage: ChatTokenUsage | None,
+    ) -> dict[str, float] | None:
+        if usage is None:
+            return None
+        estimated_cost_usd = self._estimate_chat_cost_usd(
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+        )
+        if estimated_cost_usd is None:
+            return None
+        return {"total": estimated_cost_usd}
 
     def _estimate_chat_cost_usd(
         self,

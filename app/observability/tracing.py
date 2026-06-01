@@ -28,10 +28,14 @@ class TraceSpan(Protocol):
     def update(
         self,
         *,
+        input: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
         output: Mapping[str, object] | None = None,
         level: str | None = None,
         status_message: str | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> None:
         pass
 
@@ -42,7 +46,12 @@ class Tracer(Protocol):
         name: str,
         *,
         span_type: TraceSpanType = "span",
+        input: Mapping[str, object] | None = None,
+        output: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> AbstractContextManager[TraceSpan]:
         pass
 
@@ -53,7 +62,12 @@ class NoOpTracer:
         name: str,
         *,
         span_type: TraceSpanType = "span",
+        input: Mapping[str, object] | None = None,
+        output: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> AbstractContextManager[TraceSpan]:
         return NoOpSpan()
 
@@ -68,10 +82,14 @@ class NoOpSpan:
     def update(
         self,
         *,
+        input: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
         output: Mapping[str, object] | None = None,
         level: str | None = None,
         status_message: str | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> None:
         pass
 
@@ -85,14 +103,24 @@ class LangfuseTracer:
         name: str,
         *,
         span_type: TraceSpanType = "span",
+        input: Mapping[str, object] | None = None,
+        output: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> AbstractContextManager[TraceSpan]:
         try:
             return LangfuseSpan(
                 self.client.start_as_current_observation(
                     name=name,
                     as_type=span_type,
+                    input=dict(input or {}) or None,
+                    output=dict(output or {}) or None,
                     metadata=dict(metadata or {}),
+                    model=model,
+                    usage_details=dict(usage_details or {}) or None,
+                    cost_details=dict(cost_details or {}) or None,
                 )
             )
         except Exception as exc:
@@ -136,19 +164,27 @@ class LangfuseSpan:
     def update(
         self,
         *,
+        input: Mapping[str, object] | None = None,
         metadata: Mapping[str, object] | None = None,
         output: Mapping[str, object] | None = None,
         level: str | None = None,
         status_message: str | None = None,
+        model: str | None = None,
+        usage_details: Mapping[str, int] | None = None,
+        cost_details: Mapping[str, float] | None = None,
     ) -> None:
         if self._span is None:
             return
         try:
             self._span.update(
+                input=dict(input or {}) or None,
                 metadata=dict(metadata or {}) or None,
                 output=dict(output or {}) or None,
                 level=level,
                 status_message=status_message,
+                model=model,
+                usage_details=dict(usage_details or {}) or None,
+                cost_details=dict(cost_details or {}) or None,
             )
         except Exception as exc:
             logger.warning("trace_span_update_failed", error_type=type(exc).__name__)
@@ -167,7 +203,7 @@ def build_tracer(settings: Settings) -> Tracer:
             _cached_langfuse_client(
                 public_key=settings.langfuse_public_key,
                 secret_key=settings.langfuse_secret_key,
-                host=settings.langfuse_host,
+                base_url=settings.langfuse_base_url or settings.langfuse_host,
                 environment=settings.app_env,
             )
         )
@@ -185,12 +221,12 @@ def _cached_langfuse_client(
     *,
     public_key: str,
     secret_key: str,
-    host: str,
+    base_url: str,
     environment: str,
 ) -> Langfuse:
     return Langfuse(
         public_key=public_key,
         secret_key=secret_key,
-        host=host,
+        base_url=base_url,
         environment=environment,
     )

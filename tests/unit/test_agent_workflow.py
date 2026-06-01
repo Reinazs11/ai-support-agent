@@ -105,9 +105,7 @@ class FakeWebhookHttpClient:
         payload: dict[str, object],
         timeout_seconds: float,
     ) -> WebhookHttpResponse:
-        self.requests.append(
-            {"url": url, "payload": payload, "timeout_seconds": timeout_seconds}
-        )
+        self.requests.append({"url": url, "payload": payload, "timeout_seconds": timeout_seconds})
         return WebhookHttpResponse(status_code=200)
 
 
@@ -120,12 +118,22 @@ class CapturingTracer:
         name: str,
         *,
         span_type: str = "span",
+        input: dict[str, object] | None = None,
+        output: dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
+        model: str | None = None,
+        usage_details: dict[str, int] | None = None,
+        cost_details: dict[str, float] | None = None,
     ) -> "CapturingTraceSpan":
         record: dict[str, object] = {
             "name": name,
             "span_type": span_type,
+            "input": input or {},
+            "output": output or {},
             "metadata": metadata or {},
+            "model": model,
+            "usage_details": usage_details,
+            "cost_details": cost_details,
             "updates": [],
         }
         self.spans.append(record)
@@ -147,19 +155,27 @@ class CapturingTraceSpan:
     def update(
         self,
         *,
+        input: dict[str, object] | None = None,
         metadata: dict[str, object] | None = None,
         output: dict[str, object] | None = None,
         level: str | None = None,
         status_message: str | None = None,
+        model: str | None = None,
+        usage_details: dict[str, int] | None = None,
+        cost_details: dict[str, float] | None = None,
     ) -> None:
         updates = self.record["updates"]
         assert isinstance(updates, list)
         updates.append(
             {
+                "input": input or {},
                 "metadata": metadata or {},
                 "output": output or {},
                 "level": level,
                 "status_message": status_message,
+                "model": model,
+                "usage_details": usage_details,
+                "cost_details": cost_details,
             }
         )
 
@@ -349,9 +365,7 @@ async def test_llm_router_failure_falls_back_to_deterministic_routing(
 ) -> None:
     capture = CapturingLogger()
     monkeypatch.setattr("app.agents.service.logger", capture)
-    route_model = FakeRouteModelService(
-        error=AgentRouterProviderError("provider unavailable")
-    )
+    route_model = FakeRouteModelService(error=AgentRouterProviderError("provider unavailable"))
     router = FallbackAgentRouter(primary=route_model)
 
     response = await AgentWorkflowService(router=router).run(
@@ -372,9 +386,7 @@ async def test_llm_router_failure_falls_back_to_deterministic_routing(
 
 
 async def test_llm_router_invalid_answer_falls_back_to_answer_route() -> None:
-    route_model = FakeRouteModelService(
-        error=AgentRouterProviderError("invalid route response")
-    )
+    route_model = FakeRouteModelService(error=AgentRouterProviderError("invalid route response"))
     router = FallbackAgentRouter(primary=route_model)
 
     response = await AgentWorkflowService(
@@ -392,9 +404,7 @@ async def test_agent_answer_path_returns_controlled_response_when_embedding_prov
 ) -> None:
     capture = CapturingLogger()
     monkeypatch.setattr("app.agents.service.logger", capture)
-    route_model = FakeRouteModelService(
-        error=AgentRouterProviderError("provider unavailable")
-    )
+    route_model = FakeRouteModelService(error=AgentRouterProviderError("provider unavailable"))
     router = FallbackAgentRouter(primary=route_model)
     rag_service = RagService(
         settings=Settings(retrieval_top_k=3),
