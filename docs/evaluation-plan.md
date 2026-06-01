@@ -109,9 +109,10 @@ uses the eval corpus manifest to filter each case to its expected source
 documents. It should run after `seed-eval`, with the same caution as RAG evals:
 the local API configuration determines whether providers are called.
 The default ticket dataset assumes `N8N_WEBHOOK_MODE=simulated`. In that mode,
-the n8n webhook action must stay `simulated`, not `completed`. Do not run the
-default agent eval with `N8N_WEBHOOK_MODE=live` unless the goal is a controlled
-side-effect test against a real n8n webhook. Keep
+the n8n webhook action must stay `simulated`, not `completed`. The agent eval
+runner checks `/health` and refuses datasets that expect simulated n8n when the
+API reports `n8n=live`; use `n8n-smoke` for controlled live webhook dispatch.
+Keep
 `AGENT_ROUTER_PROVIDER=deterministic` for the default baseline unless the goal
 is an explicit LLM-routing eval run.
 

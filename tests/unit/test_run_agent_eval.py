@@ -3,6 +3,7 @@ from pathlib import Path
 
 from scripts.run_agent_eval import (
     _build_markdown_report,
+    _requires_health_preflight,
     _result_to_dict,
     build_summary,
     evaluate_response,
@@ -370,6 +371,37 @@ def test_validate_agent_eval_environment_rejects_wrong_router_provider() -> None
         assert "agent_router=deterministic" in str(exc)
     else:
         raise AssertionError("Expected router provider mismatch to fail.")
+
+
+def test_validate_agent_eval_environment_rejects_live_n8n_for_simulated_dataset() -> None:
+    case = load_dataset(Path("evals/initial_agent_workflow.jsonl"), max_cases=1)[0]
+
+    try:
+        validate_agent_eval_environment(
+            cases=[case],
+            dependencies={"n8n": "live", "agent_router": "deterministic"},
+        )
+    except RuntimeError as exc:
+        assert "expects notify_n8n_webhook=simulated" in str(exc)
+        assert "n8n=live" in str(exc)
+        assert "N8N_WEBHOOK_MODE=simulated" in str(exc)
+    else:
+        raise AssertionError("Expected live n8n guard to fail.")
+
+
+def test_validate_agent_eval_environment_accepts_simulated_n8n_for_simulated_dataset() -> None:
+    case = load_dataset(Path("evals/initial_agent_workflow.jsonl"), max_cases=1)[0]
+
+    validate_agent_eval_environment(
+        cases=[case],
+        dependencies={"n8n": "simulated", "agent_router": "deterministic"},
+    )
+
+
+def test_default_agent_eval_dataset_requires_health_preflight() -> None:
+    cases = load_dataset(Path("evals/initial_agent_workflow.jsonl"), max_cases=1)
+
+    assert _requires_health_preflight(cases) is True
 
 
 def test_failed_result_records_expected_actual_and_reasons() -> None:

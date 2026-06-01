@@ -12,10 +12,19 @@ from app.documents.parsers import SUPPORTED_EXTENSIONS, parse_document
 from app.documents.schemas import DocumentIngestResponse, DocumentUploadResponse
 from app.rag.embeddings import (
     EmbeddingConfigurationError,
+    EmbeddingProviderError,
     EmbeddingService,
     build_embedding_service,
 )
 from app.rag.vector_store import ChunkVectorRecord, QdrantVectorStore, VectorStore
+
+INDEXING_UNAVAILABLE_WARNING = (
+    "Embedding and Qdrant indexing were skipped because the configured embedding "
+    "provider is unavailable or not configured."
+)
+INDEXING_FAILED_WARNING = (
+    "Embedding or Qdrant indexing failed; chunks were persisted without vectors."
+)
 
 
 class DocumentNotFoundError(ValueError):
@@ -119,14 +128,15 @@ class DocumentService:
                     id=str(uuid4()),
                     chunk_index=chunk.index,
                     text=chunk.text,
-                    qdrant_point_id=str(uuid4()),
+                    qdrant_point_id=None,
                 )
             )
 
         vectors_indexed = 0
         warnings = []
+        indexing_warning = None
         if chunks:
-            vectors_indexed = await self._index_document_chunks(document)
+            vectors_indexed, indexing_warning = await self._index_document_chunks(document)
             document.status = "indexed" if vectors_indexed else "ingested"
         else:
             document.status = "ingested"
@@ -135,10 +145,7 @@ class DocumentService:
         if not chunks:
             warnings.append("Document parsed successfully but no text chunks were produced.")
         if chunks and not vectors_indexed:
-            warnings.append(
-                "Embedding and Qdrant indexing were skipped because the configured embedding "
-                "provider is unavailable or not configured."
-            )
+            warnings.append(indexing_warning or INDEXING_UNAVAILABLE_WARNING)
 
         return DocumentIngestResponse(
             document_id=document_id,
@@ -165,19 +172,25 @@ class DocumentService:
             )
         return size_bytes
 
-    async def _index_document_chunks(self, document: Document) -> int:
+    async def _index_document_chunks(self, document: Document) -> tuple[int, str | None]:
         if self.embedding_service is None or self.vector_store is None:
-            return 0
+            return 0, INDEXING_UNAVAILABLE_WARNING
 
         chunks = sorted(document.chunks, key=lambda chunk: chunk.chunk_index)
         try:
             vectors = await self.embedding_service.embed_texts([chunk.text for chunk in chunks])
         except EmbeddingConfigurationError:
-            return 0
+            return 0, INDEXING_UNAVAILABLE_WARNING
+        except EmbeddingProviderError:
+            return 0, INDEXING_FAILED_WARNING
 
+        if len(vectors) != len(chunks):
+            return 0, INDEXING_FAILED_WARNING
+
+        point_ids = [str(uuid4()) for _chunk in chunks]
         records = [
             ChunkVectorRecord(
-                point_id=chunk.qdrant_point_id or str(uuid4()),
+                point_id=point_id,
                 vector=vector,
                 payload={
                     "document_id": document.id,
@@ -187,15 +200,21 @@ class DocumentService:
                     "text": chunk.text,
                 },
             )
-            for chunk, vector in zip(chunks, vectors, strict=True)
+            for chunk, vector, point_id in zip(chunks, vectors, point_ids, strict=True)
         ]
-        self.vector_store.delete_document_vectors(
-            collection_name=self.qdrant_collection,
-            document_id=document.id,
-        )
-        self.vector_store.index_chunks(
-            collection_name=self.qdrant_collection,
-            vector_size=self.qdrant_vector_size,
-            records=records,
-        )
-        return len(records)
+        try:
+            self.vector_store.delete_document_vectors(
+                collection_name=self.qdrant_collection,
+                document_id=document.id,
+            )
+            self.vector_store.index_chunks(
+                collection_name=self.qdrant_collection,
+                vector_size=self.qdrant_vector_size,
+                records=records,
+            )
+        except Exception:
+            return 0, INDEXING_FAILED_WARNING
+
+        for chunk, point_id in zip(chunks, point_ids, strict=True):
+            chunk.qdrant_point_id = point_id
+        return len(records), None

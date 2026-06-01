@@ -466,6 +466,15 @@ def validate_agent_eval_environment(
     cases: list[AgentEvalCase],
     dependencies: dict[str, str],
 ) -> None:
+    if _expects_simulated_n8n_webhook(cases):
+        actual_n8n_status = dependencies.get("n8n", "unknown")
+        if actual_n8n_status == "live":
+            raise RuntimeError(
+                "Agent eval dataset expects notify_n8n_webhook=simulated, "
+                "but /health reports n8n=live. Set N8N_WEBHOOK_MODE=simulated "
+                "or use the controlled n8n smoke test for live webhook dispatch."
+            )
+
     required_router_providers = {
         case.requires_agent_router_provider
         for case in cases
@@ -490,7 +499,16 @@ def validate_agent_eval_environment(
 
 
 def _requires_health_preflight(cases: list[AgentEvalCase]) -> bool:
-    return any(case.requires_agent_router_provider is not None for case in cases)
+    return any(case.requires_agent_router_provider is not None for case in cases) or (
+        _expects_simulated_n8n_webhook(cases)
+    )
+
+
+def _expects_simulated_n8n_webhook(cases: list[AgentEvalCase]) -> bool:
+    return any(
+        case.expected_action_statuses.get("notify_n8n_webhook") == "simulated"
+        for case in cases
+    )
 
 
 def _action_statuses(response: dict[str, Any]) -> dict[str, str]:
