@@ -24,6 +24,7 @@ def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
                 "expected_status": "generated",
                 "expected_answer_contains": ["30 days"],
                 "expected_source_titles": ["policy.txt"],
+                "metadata_filter": {"file_extensions": [".txt"]},
                 "top_k": 1,
             }
         )
@@ -38,6 +39,7 @@ def test_load_dataset_reads_jsonl_cases(tmp_path) -> None:
     assert cases[0].expected_answer_contains == ["30 days"]
     assert cases[0].expected_answer_contains_any == []
     assert cases[0].expected_source_titles == ["policy.txt"]
+    assert cases[0].metadata_filter == {"file_extensions": [".txt"]}
 
 
 def test_committed_initial_dataset_is_well_formed() -> None:
@@ -51,6 +53,7 @@ def test_committed_initial_dataset_is_well_formed() -> None:
         assert case.question
         assert case.expected_status in {"generated", "insufficient_context", None}
         assert all(group for group in case.expected_answer_contains_any)
+        assert set(case.metadata_filter).issubset({"document_ids", "file_extensions"})
         if case.expected_status == "generated":
             assert case.expected_source_titles
             for source_title in case.expected_source_titles:
@@ -489,6 +492,7 @@ def load_dataset_case(
         "expected_source_titles": (
             ["policy.txt"] if expected_source_titles is None else expected_source_titles
         ),
+        "metadata_filter": {},
     }
     from scripts.run_eval import _case_from_payload
 

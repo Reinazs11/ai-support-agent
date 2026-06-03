@@ -60,11 +60,15 @@ tickets, and later executes controlled workflows with LangGraph.
   changing document ingestion contracts.
 - Chat model configuration is provider-based. OpenAI is the first implemented
   provider, and disabled mode keeps retrieval testable without LLM calls.
-- RAG context limiting is currently character-based for simplicity. Token-aware
-  budgeting can replace it once model-specific token counting is added before
-  provider calls.
+- RAG context limiting uses a character budget plus an optional approximate
+  token budget before provider calls. The token estimate is intentionally local
+  and dependency-free; a model-specific tokenizer can replace it later if exact
+  accounting becomes necessary.
 - Cost estimates use configured per-1M-token rates instead of hardcoded pricing
   so the project can stay accurate as provider prices change.
+- OpenAI embedding and chat calls use a small configurable retry/backoff policy.
+  Final provider failures still return controlled API statuses instead of raw
+  provider exceptions.
 - Safety fallback is mandatory when there is insufficient retrieved context.
 - Agent workflows should be measured with deterministic workflow evals before
   enabling live external automation such as n8n webhooks.

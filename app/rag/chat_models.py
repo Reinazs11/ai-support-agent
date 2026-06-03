@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.rag.vector_store import RetrievedChunk
 
@@ -46,11 +47,21 @@ class ChatModelService(Protocol):
 
 
 class OpenAIChatModelService:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        max_retries: int = 2,
+        retry_initial_wait_seconds: float = 0.25,
+        retry_max_wait_seconds: float = 2.0,
+    ) -> None:
         if not api_key:
             raise ChatModelConfigurationError("An API key is required for OpenAI chat.")
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key)
+        self.max_retries = max_retries
+        self.retry_initial_wait_seconds = retry_initial_wait_seconds
+        self.retry_max_wait_seconds = retry_max_wait_seconds
 
     async def generate_answer(
         self,
@@ -62,11 +73,21 @@ class OpenAIChatModelService:
 
         messages = build_grounded_messages(question=question, chunks=chunks)
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0,
-            )
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(self.max_retries + 1),
+                wait=wait_exponential(
+                    multiplier=self.retry_initial_wait_seconds,
+                    max=self.retry_max_wait_seconds,
+                ),
+                retry=retry_if_exception_type(Exception),
+                reraise=True,
+            ):
+                with attempt:
+                    response = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        temperature=0,
+                    )
         except Exception as exc:
             raise ChatModelProviderError("OpenAI chat generation failed.") from exc
 
@@ -135,6 +156,12 @@ def build_chat_model_service(settings: "Settings") -> ChatModelService | None:
         model = settings.chat_model or settings.openai_chat_model
         if not api_key:
             return None
-        return OpenAIChatModelService(api_key=api_key, model=model)
+        return OpenAIChatModelService(
+            api_key=api_key,
+            model=model,
+            max_retries=settings.provider_max_retries,
+            retry_initial_wait_seconds=settings.provider_retry_initial_wait_seconds,
+            retry_max_wait_seconds=settings.provider_retry_max_wait_seconds,
+        )
 
     raise ChatModelConfigurationError(f"Unsupported chat provider '{settings.chat_provider}'.")

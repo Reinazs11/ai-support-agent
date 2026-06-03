@@ -7,10 +7,11 @@
   `EMBEDDING_API_KEY` or the backward-compatible `OPENAI_API_KEY`; local
   embeddings are prepared in configuration but not implemented yet.
 - `/chat` retrieves from Qdrant and can call an OpenAI chat model when
-  configured. Current metadata filtering is limited to document IDs, context
-  budgeting is character-based rather than token-aware, and cost estimates
-  require configured per-token rates. Embedding and chat provider failures
-  return controlled statuses, but provider retries/backoff are still minimal.
+  configured. Current metadata filtering is narrow, context token budgeting uses
+  a local approximate estimator rather than a model-specific tokenizer, and cost
+  estimates require configured per-token rates. Embedding and chat provider
+  calls use a small configurable retry/backoff policy, but there is no circuit
+  breaker or provider-specific retry classification yet.
 - Ticket classification is deterministic and keyword-based. Agent route
   selection is deterministic by default, with an opt-in LLM-assisted route
   classifier available behind `AGENT_ROUTER_PROVIDER=llm`.

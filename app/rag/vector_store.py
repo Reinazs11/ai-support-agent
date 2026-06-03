@@ -22,6 +22,12 @@ class RetrievedChunk:
     score: float
 
 
+@dataclass(frozen=True)
+class VectorSearchFilter:
+    document_ids: list[str] | None = None
+    file_extensions: list[str] | None = None
+
+
 class VectorStore(Protocol):
     def delete_document_vectors(self, collection_name: str, document_id: str) -> None:
         pass
@@ -40,6 +46,7 @@ class VectorStore(Protocol):
         vector: list[float],
         limit: int,
         document_ids: list[str] | None = None,
+        metadata_filter: VectorSearchFilter | None = None,
     ) -> list[RetrievedChunk]:
         pass
 
@@ -100,11 +107,15 @@ class QdrantVectorStore:
         vector: list[float],
         limit: int,
         document_ids: list[str] | None = None,
+        metadata_filter: VectorSearchFilter | None = None,
     ) -> list[RetrievedChunk]:
         if not self.client.collection_exists(collection_name):
             return []
 
-        query_filter = self._build_document_filter(document_ids or [])
+        query_filter = self._build_metadata_filter(
+            document_ids=document_ids or [],
+            metadata_filter=metadata_filter,
+        )
         response = self.client.query_points(
             collection_name=collection_name,
             query=vector,
@@ -125,17 +136,49 @@ class QdrantVectorStore:
             if point.payload
         ]
 
-    def _build_document_filter(self, document_ids: list[str]) -> models.Filter | None:
-        unique_document_ids = sorted({document_id for document_id in document_ids if document_id})
-        if not unique_document_ids:
-            return None
+    def _build_metadata_filter(
+        self,
+        *,
+        document_ids: list[str],
+        metadata_filter: VectorSearchFilter | None,
+    ) -> models.Filter | None:
+        requested_document_ids = list(document_ids)
+        requested_file_extensions: list[str] = []
+        if metadata_filter is not None:
+            requested_document_ids.extend(metadata_filter.document_ids or [])
+            requested_file_extensions.extend(metadata_filter.file_extensions or [])
 
-        return models.Filter(
-            should=[
+        unique_document_ids = sorted({value for value in requested_document_ids if value})
+        unique_file_extensions = sorted(
+            {_normalize_file_extension(value) for value in requested_file_extensions if value}
+        )
+
+        conditions: list[models.FieldCondition] = []
+        if unique_document_ids:
+            conditions.append(
                 models.FieldCondition(
                     key="document_id",
-                    match=models.MatchValue(value=document_id),
+                    match=models.MatchAny(any=unique_document_ids),
                 )
-                for document_id in unique_document_ids
-            ]
-        )
+            )
+        if unique_file_extensions:
+            conditions.append(
+                models.FieldCondition(
+                    key="file_extension",
+                    match=models.MatchAny(any=unique_file_extensions),
+                )
+            )
+
+        if not conditions:
+            return None
+
+        return models.Filter(must=conditions)
+
+
+def _normalize_file_extension(value: str) -> str:
+    extension = value.strip().lower()
+    if not extension:
+        return extension
+    if not extension.startswith("."):
+        return f".{extension}"
+    return extension
