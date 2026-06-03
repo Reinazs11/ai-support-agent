@@ -1,6 +1,6 @@
 from qdrant_client import QdrantClient
 
-from app.rag.vector_store import ChunkVectorRecord, QdrantVectorStore
+from app.rag.vector_store import ChunkVectorRecord, QdrantVectorStore, VectorSearchFilter
 
 
 def test_qdrant_vector_store_indexes_and_deletes_document_vectors() -> None:
@@ -14,6 +14,7 @@ def test_qdrant_vector_store_indexes_and_deletes_document_vectors() -> None:
             "chunk_id": "chunk-1",
             "chunk_index": 0,
             "filename": "policy.txt",
+            "file_extension": ".txt",
             "text": "Refund policy",
         },
     )
@@ -42,6 +43,7 @@ def test_qdrant_vector_store_searches_similar_chunks() -> None:
                 "chunk_id": "chunk-1",
                 "chunk_index": 0,
                 "filename": "policy.txt",
+                "file_extension": ".txt",
                 "text": "Refund policy",
             },
         ),
@@ -53,6 +55,7 @@ def test_qdrant_vector_store_searches_similar_chunks() -> None:
                 "chunk_id": "chunk-2",
                 "chunk_index": 0,
                 "filename": "pricing.txt",
+                "file_extension": ".txt",
                 "text": "Pricing policy",
             },
         ),
@@ -85,6 +88,7 @@ def test_qdrant_vector_store_filters_search_by_document_ids() -> None:
                 "chunk_id": "chunk-1",
                 "chunk_index": 0,
                 "filename": "policy.txt",
+                "file_extension": ".txt",
                 "text": "Refund policy",
             },
         ),
@@ -96,6 +100,7 @@ def test_qdrant_vector_store_filters_search_by_document_ids() -> None:
                 "chunk_id": "chunk-2",
                 "chunk_index": 0,
                 "filename": "pricing.txt",
+                "file_extension": ".txt",
                 "text": "Pricing policy",
             },
         ),
@@ -113,3 +118,47 @@ def test_qdrant_vector_store_filters_search_by_document_ids() -> None:
     assert len(results) == 1
     assert results[0].document_id == "doc-2"
     assert results[0].chunk_id == "chunk-2"
+
+
+def test_qdrant_vector_store_filters_search_by_metadata() -> None:
+    store = QdrantVectorStore(url="unused", client=QdrantClient(":memory:"))
+    collection_name = "test_metadata_filtered_search_collection"
+    records = [
+        ChunkVectorRecord(
+            point_id="11111111-1111-1111-1111-111111111111",
+            vector=[0.1, 0.2, 0.3],
+            payload={
+                "document_id": "doc-1",
+                "chunk_id": "chunk-1",
+                "chunk_index": 0,
+                "filename": "policy.pdf",
+                "file_extension": ".pdf",
+                "text": "Refund policy",
+            },
+        ),
+        ChunkVectorRecord(
+            point_id="22222222-2222-2222-2222-222222222222",
+            vector=[0.1, 0.2, 0.3],
+            payload={
+                "document_id": "doc-2",
+                "chunk_id": "chunk-2",
+                "chunk_index": 0,
+                "filename": "pricing.txt",
+                "file_extension": ".txt",
+                "text": "Pricing policy",
+            },
+        ),
+    ]
+
+    store.index_chunks(collection_name=collection_name, vector_size=3, records=records)
+
+    results = store.search_similar(
+        collection_name=collection_name,
+        vector=[0.1, 0.2, 0.3],
+        limit=5,
+        metadata_filter=VectorSearchFilter(file_extensions=["pdf"]),
+    )
+
+    assert len(results) == 1
+    assert results[0].document_id == "doc-1"
+    assert results[0].filename == "policy.pdf"

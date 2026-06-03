@@ -54,6 +54,7 @@ class EvalCase:
     max_answer_chars: int | None
     expected_source_titles: list[str]
     document_ids: list[str]
+    metadata_filter: dict[str, Any]
     top_k: int
 
 
@@ -343,13 +344,16 @@ def run_eval(
                 manifest_document_ids=manifest_document_ids,
             )
             started = perf_counter()
+            request_payload: dict[str, Any] = {
+                "question": case.question,
+                "top_k": case.top_k,
+                "document_ids": document_ids,
+            }
+            if case.metadata_filter:
+                request_payload["metadata_filter"] = case.metadata_filter
             response = client.post(
                 "/chat",
-                json={
-                    "question": case.question,
-                    "top_k": case.top_k,
-                    "document_ids": document_ids,
-                },
+                json=request_payload,
             )
             latency_ms = (perf_counter() - started) * 1000
             response.raise_for_status()
@@ -505,6 +509,7 @@ def _case_from_payload(payload: dict[str, Any], line_number: int) -> EvalCase:
             ),
             expected_source_titles=list(payload.get("expected_source_titles", [])),
             document_ids=list(payload.get("document_ids", [])),
+            metadata_filter=dict(payload.get("metadata_filter", {})),
             top_k=int(payload.get("top_k", 1)),
         )
     except KeyError as exc:

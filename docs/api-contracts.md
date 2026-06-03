@@ -85,12 +85,23 @@ Request:
 {
   "question": "What is the refund policy?",
   "top_k": 5,
-  "document_ids": ["document-uuid"]
+  "document_ids": ["document-uuid"],
+  "metadata_filter": {
+    "document_ids": ["document-uuid"],
+    "file_extensions": [".pdf"]
+  }
 }
 ```
 
 `document_ids` is optional. When provided, retrieval is limited to chunks whose
-Qdrant payload has one of those document IDs.
+Qdrant payload has one of those document IDs. `metadata_filter` is also
+optional and supports `document_ids` and `file_extensions`; multiple filter
+dimensions are combined as an AND condition. The top-level `document_ids` field
+is kept as a compatibility shortcut for the most common filter.
+
+`file_extensions` are normalized to lowercase dotted extensions such as `.pdf`.
+Previously indexed chunks must be reingested before this filter can match,
+because the `file_extension` payload is written during indexing.
 
 Response includes `answer`, `sources`, `confidence`, `retrieval_status`, and
 `usage`.
@@ -129,9 +140,12 @@ Generated answers are prompted only with the chunks returned by retrieval. When
 no chunks are available, the answer uses the explicit fallback:
 `I do not have enough information to answer safely.`
 
-Before calling the chat model, the service applies `RAG_CONTEXT_MAX_CHARS` to
-the retrieved chunk text. Sources in the response reflect chunks included in the
-bounded context, not every raw vector-search result.
+Before calling the chat model, the service applies `RAG_CONTEXT_MAX_CHARS` and,
+when configured, `RAG_CONTEXT_MAX_TOKENS` to the retrieved chunk text. The token
+budget uses a local approximate estimator rather than a model-specific tokenizer,
+so it is an operational guardrail rather than an exact provider token count.
+Sources in the response reflect chunks included in the bounded context, not
+every raw vector-search result.
 
 ## POST /tickets/classify
 

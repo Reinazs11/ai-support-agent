@@ -10,9 +10,9 @@ from app.rag.chat_models import (
     ChatTokenUsage,
 )
 from app.rag.embeddings import EmbeddingProviderError
-from app.rag.schemas import ChatRequest
-from app.rag.service import RagService
-from app.rag.vector_store import ChunkVectorRecord, RetrievedChunk
+from app.rag.schemas import ChatMetadataFilter, ChatRequest
+from app.rag.service import RagService, estimate_text_tokens, truncate_text_to_token_budget
+from app.rag.vector_store import ChunkVectorRecord, RetrievedChunk, VectorSearchFilter
 
 
 class FakeEmbeddingService:
@@ -36,6 +36,7 @@ class FakeVectorStore:
         self.search_limit: int | None = None
         self.search_vector: list[float] | None = None
         self.search_document_ids: list[str] | None = None
+        self.search_metadata_filter: VectorSearchFilter | None = None
 
     def delete_document_vectors(self, collection_name: str, document_id: str) -> None:
         pass
@@ -54,10 +55,12 @@ class FakeVectorStore:
         vector: list[float],
         limit: int,
         document_ids: list[str] | None = None,
+        metadata_filter: VectorSearchFilter | None = None,
     ) -> list[RetrievedChunk]:
         self.search_vector = vector
         self.search_limit = limit
         self.search_document_ids = document_ids
+        self.search_metadata_filter = metadata_filter
         return self.results
 
 
@@ -224,6 +227,35 @@ async def test_chat_passes_document_ids_to_vector_search() -> None:
 
     assert response.retrieval_status == "no_results"
     assert vector_store.search_document_ids == ["doc-1", "doc-2"]
+    assert vector_store.search_metadata_filter is None
+
+
+@pytest.mark.asyncio
+async def test_chat_passes_metadata_filter_to_vector_search() -> None:
+    embedding_service = FakeEmbeddingService()
+    vector_store = FakeVectorStore()
+    service = RagService(
+        settings=Settings(retrieval_top_k=3),
+        embedding_service=embedding_service,
+        vector_store=vector_store,
+    )
+
+    response = await service.answer(
+        ChatRequest(
+            question="What is the refund policy?",
+            metadata_filter=ChatMetadataFilter(
+                document_ids=["doc-3"],
+                file_extensions=["pdf", ".md"],
+            ),
+        )
+    )
+
+    assert response.retrieval_status == "no_results"
+    assert vector_store.search_document_ids == []
+    assert vector_store.search_metadata_filter == VectorSearchFilter(
+        document_ids=["doc-3"],
+        file_extensions=["pdf", ".md"],
+    )
 
 
 @pytest.mark.asyncio
@@ -391,6 +423,62 @@ async def test_chat_limits_context_before_calling_llm() -> None:
     assert len(response.sources) == 1
     assert response.sources[0].chunk_id == "chunk-1"
     assert chat_model_service.requests[0][1][0].text == "Refunds are"
+
+
+@pytest.mark.asyncio
+async def test_chat_limits_context_by_estimated_tokens_before_calling_llm() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days for standard purchases.",
+        score=0.92,
+    )
+    chat_model_service = FakeChatModelService()
+    service = RagService(
+        settings=Settings(retrieval_top_k=5, rag_context_max_chars=6000, rag_context_max_tokens=4),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=chat_model_service,
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "generated"
+    assert chat_model_service.requests[0][1][0].text == "Refunds are available within"
+    assert estimate_text_tokens(chat_model_service.requests[0][1][0].text) == 4
+
+
+@pytest.mark.asyncio
+async def test_chat_truncates_context_to_one_estimated_token() -> None:
+    result = RetrievedChunk(
+        document_id="doc-1",
+        chunk_id="chunk-1",
+        chunk_index=0,
+        filename="policy.txt",
+        text="Refunds are available within 30 days.",
+        score=0.92,
+    )
+    chat_model_service = FakeChatModelService()
+    service = RagService(
+        settings=Settings(retrieval_top_k=5, rag_context_max_tokens=1),
+        embedding_service=FakeEmbeddingService(),
+        vector_store=FakeVectorStore(results=[result]),
+        chat_model_service=chat_model_service,
+    )
+
+    response = await service.answer(ChatRequest(question="What is the refund policy?"))
+
+    assert response.retrieval_status == "generated"
+    assert chat_model_service.requests[0][1][0].text == "Refunds"
+
+
+def test_token_budget_helpers_estimate_and_truncate_text() -> None:
+    text = "Refunds are available within 30 days."
+
+    assert estimate_text_tokens(text) == 7
+    assert truncate_text_to_token_budget(text, 4) == "Refunds are available within"
 
 
 @pytest.mark.asyncio

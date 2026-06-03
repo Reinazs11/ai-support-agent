@@ -1,3 +1,4 @@
+import re
 from dataclasses import replace
 from time import perf_counter
 
@@ -19,9 +20,10 @@ from app.rag.embeddings import (
     build_embedding_service,
 )
 from app.rag.schemas import ChatRequest, ChatResponse, ChatUsageEstimate, SourceCitation
-from app.rag.vector_store import QdrantVectorStore, RetrievedChunk, VectorStore
+from app.rag.vector_store import QdrantVectorStore, RetrievedChunk, VectorSearchFilter, VectorStore
 
 logger = structlog.get_logger(__name__)
+TOKEN_PATTERN = re.compile(r"\w+|[^\w\s]")
 
 
 class RagService:
@@ -48,11 +50,13 @@ class RagService:
             input={
                 "question_chars": len(request.question),
                 "top_k": request.top_k or self.settings.retrieval_top_k,
-                "document_filter_count": len(request.document_ids),
+                "document_filter_count": len(self._requested_document_ids(request)),
+                "file_extension_filter_count": len(self._requested_file_extensions(request)),
             },
             metadata={
                 "top_k": request.top_k or self.settings.retrieval_top_k,
-                "document_filter_count": len(request.document_ids),
+                "document_filter_count": len(self._requested_document_ids(request)),
+                "file_extension_filter_count": len(self._requested_file_extensions(request)),
                 "embedding_provider": self.settings.embedding_provider,
                 "chat_provider": self.settings.chat_provider,
             },
@@ -143,7 +147,8 @@ class RagService:
             metadata={
                 "collection": self.settings.qdrant_collection,
                 "top_k": top_k,
-                "document_filter_count": len(request.document_ids),
+                "document_filter_count": len(self._requested_document_ids(request)),
+                "file_extension_filter_count": len(self._requested_file_extensions(request)),
             },
         ) as span:
             retrieved_chunks = self.vector_store.search_similar(
@@ -151,6 +156,7 @@ class RagService:
                 vector=question_vectors[0],
                 limit=top_k,
                 document_ids=request.document_ids,
+                metadata_filter=self._build_vector_search_filter(request),
             )
             span.update(output={"retrieved_count": len(retrieved_chunks)})
         retrieval_latency_ms = (perf_counter() - retrieval_started) * 1000
@@ -163,6 +169,7 @@ class RagService:
                 retrieved_count=0,
                 context_source_count=0,
                 context_chars=0,
+                context_estimated_tokens=0,
                 context_truncated=False,
             )
             return ChatResponse(
@@ -177,15 +184,20 @@ class RagService:
             metadata={
                 "retrieved_count": len(retrieved_chunks),
                 "context_max_chars": self.settings.rag_context_max_chars,
+                "context_max_tokens": self.settings.rag_context_max_tokens,
             },
         ) as span:
-            context_chunks, context_chars, context_truncated = self._limit_context_chunks(
-                retrieved_chunks
-            )
+            (
+                context_chunks,
+                context_chars,
+                context_estimated_tokens,
+                context_truncated,
+            ) = self._limit_context_chunks(retrieved_chunks)
             span.update(
                 output={
                     "context_source_count": len(context_chunks),
                     "context_chars": context_chars,
+                    "context_estimated_tokens": context_estimated_tokens,
                     "context_truncated": context_truncated,
                 }
             )
@@ -198,6 +210,7 @@ class RagService:
                 retrieved_count=len(retrieved_chunks),
                 context_source_count=0,
                 context_chars=0,
+                context_estimated_tokens=0,
                 context_truncated=context_truncated,
             )
             return ChatResponse(
@@ -226,6 +239,7 @@ class RagService:
                 retrieved_count=len(retrieved_chunks),
                 context_source_count=len(sources),
                 context_chars=context_chars,
+                context_estimated_tokens=context_estimated_tokens,
                 context_truncated=context_truncated,
                 sources=sources,
             )
@@ -255,6 +269,7 @@ class RagService:
                     ),
                     "context_source_count": len(sources),
                     "context_chars": context_chars,
+                    "context_estimated_tokens": context_estimated_tokens,
                     "context_truncated": context_truncated,
                 },
             ) as span:
@@ -295,6 +310,7 @@ class RagService:
                 retrieved_count=len(retrieved_chunks),
                 context_source_count=len(sources),
                 context_chars=context_chars,
+                context_estimated_tokens=context_estimated_tokens,
                 context_truncated=context_truncated,
                 sources=sources,
                 error_type=type(exc).__name__,
@@ -315,6 +331,7 @@ class RagService:
                 retrieved_count=len(retrieved_chunks),
                 context_source_count=len(sources),
                 context_chars=context_chars,
+                context_estimated_tokens=context_estimated_tokens,
                 context_truncated=context_truncated,
                 sources=sources,
                 error_type=type(exc).__name__,
@@ -337,6 +354,7 @@ class RagService:
                 retrieved_count=len(retrieved_chunks),
                 context_source_count=len(sources),
                 context_chars=context_chars,
+                context_estimated_tokens=context_estimated_tokens,
                 context_truncated=context_truncated,
                 sources=sources,
                 model=model_result.model,
@@ -358,6 +376,7 @@ class RagService:
             retrieved_count=len(retrieved_chunks),
             context_source_count=len(sources),
             context_chars=context_chars,
+            context_estimated_tokens=context_estimated_tokens,
             context_truncated=context_truncated,
             sources=sources,
             model=model_result.model,
@@ -385,6 +404,26 @@ class RagService:
             total_tokens=usage.total_tokens,
             estimated_cost_usd=estimated_cost_usd,
         )
+
+    def _build_vector_search_filter(self, request: ChatRequest) -> VectorSearchFilter | None:
+        if request.metadata_filter is None:
+            return None
+
+        return VectorSearchFilter(
+            document_ids=request.metadata_filter.document_ids,
+            file_extensions=request.metadata_filter.file_extensions,
+        )
+
+    def _requested_document_ids(self, request: ChatRequest) -> list[str]:
+        document_ids = list(request.document_ids)
+        if request.metadata_filter is not None:
+            document_ids.extend(request.metadata_filter.document_ids)
+        return [document_id for document_id in document_ids if document_id]
+
+    def _requested_file_extensions(self, request: ChatRequest) -> list[str]:
+        if request.metadata_filter is None:
+            return []
+        return [extension for extension in request.metadata_filter.file_extensions if extension]
 
     def _build_langfuse_usage_details(
         self,
@@ -441,6 +480,7 @@ class RagService:
             retrieved_count=0,
             context_source_count=0,
             context_chars=0,
+            context_estimated_tokens=0,
             context_truncated=False,
             error_type=error_type,
         )
@@ -448,11 +488,13 @@ class RagService:
     def _limit_context_chunks(
         self,
         retrieved_chunks: list[RetrievedChunk],
-    ) -> tuple[list[RetrievedChunk], int, bool]:
+    ) -> tuple[list[RetrievedChunk], int, int, bool]:
         context_chunks: list[RetrievedChunk] = []
         context_chars = 0
+        context_estimated_tokens = 0
         truncated = False
         max_chars = self.settings.rag_context_max_chars
+        max_tokens = self.settings.rag_context_max_tokens
 
         for chunk in retrieved_chunks:
             text = chunk.text.strip()
@@ -472,13 +514,28 @@ class RagService:
             if not text:
                 break
 
+            token_count = estimate_text_tokens(text)
+            if max_tokens is not None:
+                remaining_tokens = max_tokens - context_estimated_tokens
+                if remaining_tokens <= 0:
+                    truncated = True
+                    break
+                if token_count > remaining_tokens:
+                    text = truncate_text_to_token_budget(text, remaining_tokens)
+                    token_count = estimate_text_tokens(text)
+                    truncated = True
+
+            if not text or token_count == 0:
+                break
+
             context_chunks.append(replace(chunk, text=text))
             context_chars += len(text)
+            context_estimated_tokens += token_count
 
         if len(context_chunks) < len(retrieved_chunks):
             truncated = True
 
-        return context_chunks, context_chars, truncated
+        return context_chunks, context_chars, context_estimated_tokens, truncated
 
     def _log_chat_result(
         self,
@@ -490,6 +547,7 @@ class RagService:
         retrieved_count: int,
         context_source_count: int,
         context_chars: int,
+        context_estimated_tokens: int,
         context_truncated: bool,
         sources: list[SourceCitation] | None = None,
         model: str | None = None,
@@ -510,6 +568,8 @@ class RagService:
             context_source_count=context_source_count,
             context_chars=context_chars,
             context_max_chars=self.settings.rag_context_max_chars,
+            context_estimated_tokens=context_estimated_tokens,
+            context_max_tokens=self.settings.rag_context_max_tokens,
             context_truncated=context_truncated,
             error_type=error_type,
             prompt_tokens=usage.prompt_tokens if usage is not None else None,
@@ -525,3 +585,18 @@ class RagService:
                 for source in sources or []
             ],
         )
+
+
+def estimate_text_tokens(text: str) -> int:
+    return len(TOKEN_PATTERN.findall(text))
+
+
+def truncate_text_to_token_budget(text: str, max_tokens: int) -> str:
+    if max_tokens <= 0:
+        return ""
+
+    token_matches = list(TOKEN_PATTERN.finditer(text))
+    if len(token_matches) <= max_tokens:
+        return text
+
+    return text[: token_matches[max_tokens - 1].end()].rstrip()

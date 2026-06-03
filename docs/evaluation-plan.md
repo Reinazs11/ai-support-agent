@@ -2,7 +2,7 @@
 
 ## Initial Dataset
 
-The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 30
+The initial committed dataset is `evals/initial_rag.jsonl`. It currently has 33
 checks against the synthetic and FTC public-source files in `evals/corpus/` so
 the runner can be validated cheaply before adding optional LLM-as-judge or
 Ragas-style evaluation later.
@@ -25,6 +25,7 @@ Each row should include:
 - whether fallback is expected;
 - optional forbidden answer terms;
 - optional answer length limits;
+- optional `metadata_filter` values passed through to `/chat`;
 - notes about ambiguity or policy constraints.
 
 For deterministic answer checks, use `expected_answer_contains` when a fact must

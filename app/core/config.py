@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     chat_model: str = ""
     chat_prompt_cost_per_1m_tokens: float = Field(default=0.0, ge=0)
     chat_completion_cost_per_1m_tokens: float = Field(default=0.0, ge=0)
+    provider_max_retries: int = Field(default=2, ge=0, le=5)
+    provider_retry_initial_wait_seconds: float = Field(default=0.25, ge=0, le=5)
+    provider_retry_max_wait_seconds: float = Field(default=2.0, ge=0, le=30)
 
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4.1-mini"
@@ -43,6 +46,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     retrieval_top_k: int = 5
     rag_context_max_chars: int = Field(default=6000, ge=1)
+    rag_context_max_tokens: int | None = Field(default=None, ge=1)
     max_upload_mb: int = 25
     upload_dir: str = "uploads/documents"
 

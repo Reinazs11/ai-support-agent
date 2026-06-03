@@ -43,8 +43,8 @@ Status: implemented for portfolio baseline.
 - Logging covers latency, model, top-k, context limits, token usage, estimated
   cost, and source IDs without logging full prompts or documents.
 
-Known hardening left for production: richer metadata filters, token-aware
-budgeting, and retry/backoff policy.
+Known hardening left for production: broader metadata filters, model-specific
+token budgeting, and retry/backoff policy.
 
 ## Phase 5: Evaluation
 
@@ -98,3 +98,46 @@ Remaining production work: authentication, authorization, rate limiting, object
 storage, retention policy, platform-specific deployment, secret manager
 integration, deep readiness checks, observability dashboard setup, and sampling
 policy.
+
+## Phase 8: Portfolio Enrichment
+
+Status: started.
+
+These are targeted improvements to make the project stronger against entry-level
+AI Engineer job requirements. They are not required for the local portfolio
+baseline, but they add interview-ready evidence around production LLM
+engineering, deployment, evaluation, and applied ML trade-offs.
+
+Recommended increments:
+
+- Harden RAG with richer metadata filters, token-aware context budgeting, and
+  retry/backoff behavior for provider calls.
+- Add optional LLM-as-judge or Ragas-style evaluation with explicit cost guards
+  and report output.
+- Add basic API-key authentication, authorization boundaries, and rate limiting.
+- Add deep readiness checks for PostgreSQL and Qdrant.
+- Add a platform-specific public deployment guide and, when practical, deploy a
+  private or public demo.
+- Add an observability dashboard or queryable audit view for latency, costs,
+  retrieval status, and workflow outcomes.
+- Consider a separate small MLOps project for scikit-learn/PyTorch, MLflow, and
+  model-training workflows instead of forcing classic ML tooling into this RAG
+  backend.
+- Consider a separate MCP or LangChain/LlamaIndex adapter demo if job-search
+  positioning needs those keywords, while keeping this core backend simple.
+
+Current implementation focus: start with RAG hardening because it strengthens
+the existing architecture directly and maps cleanly to common job posting
+requirements for RAG systems with metadata filtering, evaluation, and operational
+reliability.
+
+Progress:
+
+- Metadata filtering started with an explicit `/chat` `metadata_filter` request
+  object supporting document IDs and file extensions. New indexed chunks now
+  include `file_extension` payload metadata for Qdrant filtering.
+- Context budgeting now supports an optional approximate `RAG_CONTEXT_MAX_TOKENS`
+  guard in addition to `RAG_CONTEXT_MAX_CHARS`, so retrieved context is bounded
+  before chat generation without adding a tokenizer dependency.
+- OpenAI embedding and chat provider calls now use a configurable retry/backoff
+  policy before returning controlled provider-failure statuses.

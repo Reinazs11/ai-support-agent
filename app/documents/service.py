@@ -197,6 +197,7 @@ class DocumentService:
                     "chunk_id": chunk.id,
                     "chunk_index": chunk.chunk_index,
                     "filename": document.filename,
+                    "file_extension": Path(document.filename).suffix.lower(),
                     "text": chunk.text,
                 },
             )
